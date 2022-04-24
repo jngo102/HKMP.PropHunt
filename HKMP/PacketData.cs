@@ -1,6 +1,5 @@
 using Hkmp.Networking.Packet;
 using Hkmp.Math;
-using System.Collections.Generic;
 
 namespace PropHunt.HKMP
 {
@@ -101,12 +100,62 @@ namespace PropHunt.HKMP
         }
     }
 
+    internal class PropScaleFromServerToClientData : IPacketData
+    {
+        public bool IsReliable => false;
+        public bool DropReliableDataIfNewerExists => false;
+
+        public ushort PlayerId { get; set; }
+
+        public float ScaleFactor { get; set; }
+
+        public void ReadData(IPacket packet)
+        {
+            PlayerId = packet.ReadUShort();
+
+            ScaleFactor = packet.ReadFloat();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(PlayerId);
+
+            packet.Write(ScaleFactor);
+        }
+    }
+
+    internal class SetPlayingPropHuntFromServerToClientData : IPacketData
+    {
+        public bool IsReliable => true;
+        public bool DropReliableDataIfNewerExists => true;
+
+        public ushort PlayerId { get; set; }
+
+        public bool Playing { get; set; }
+
+        public void ReadData(IPacket packet)
+        {
+            PlayerId = packet.ReadUShort();
+
+            Playing = packet.ReadBool();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(PlayerId);
+
+            packet.Write(Playing);
+        }
+    }
+
     public enum FromServerToClientPackets
     {
         SendPropSprite,
         SendPropPositionXY,
         SendPropPositionZ,
         SendPropRotation,
+        SendPropScale,
+        SetPlayingPropHunt,
     }
 
     #endregion
@@ -184,12 +233,50 @@ namespace PropHunt.HKMP
         }
     }
 
+    internal class PropScaleFromClientToServerData : IPacketData
+    {
+        public bool IsReliable => false;
+        public bool DropReliableDataIfNewerExists => false;
+
+        public float ScaleFactor { get; set; }
+
+        public void ReadData(IPacket packet)
+        {
+            ScaleFactor = packet.ReadFloat();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(ScaleFactor);
+        }
+    }
+
+    internal class SetPlayingPropHuntFromClientToServerData : IPacketData
+    {
+        public bool IsReliable => false;
+        public bool DropReliableDataIfNewerExists => false;
+
+        public bool Playing { get; set; }
+
+        public void ReadData(IPacket packet)
+        {
+            Playing = packet.ReadBool();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(Playing);
+        }
+    }
+
     public enum FromClientToServerPackets
     {
         BroadcastPropSprite,
         BroadcastPropPositionXY,
         BroadcastPropPositionZ,
         BroadcastPropRotation,
+        BroadcastPropScale,
+        SetPlayingPropHunt,
     }
 
     #endregion

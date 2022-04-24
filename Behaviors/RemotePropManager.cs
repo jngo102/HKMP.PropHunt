@@ -11,7 +11,7 @@ namespace PropHunt.Behaviors
 
         private void Awake()
         {
-            _meshRend = GetComponentInChildren<MeshRenderer>();
+            _meshRend = GetComponent<MeshRenderer>();
             _username = transform.parent.Find("Username").gameObject;
             _prop = new GameObject("Prop");
             _prop.transform.SetParent(transform);
@@ -21,9 +21,17 @@ namespace PropHunt.Behaviors
 
         public void SetPropSprite(Sprite sprite)
         {
+            _propSprite.sprite = sprite;
+
+            if (sprite == null)
+            {
+                _meshRend.enabled = true;
+                _username.SetActive(true);
+                return;
+            }
+
             _meshRend.enabled = false;
             _username.SetActive(false);
-            _propSprite.sprite = sprite;
         }
     }
 }

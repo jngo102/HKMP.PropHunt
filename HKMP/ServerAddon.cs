@@ -1,3 +1,4 @@
+using System.Linq;
 using Hkmp.Api.Server;
 using Hkmp.Networking.Packet;
 
@@ -36,11 +37,15 @@ namespace PropHunt.HKMP
                 FromClientToServerPackets.BroadcastPropPositionXY,
                 (id, packetData) =>
                 {
-                    sender.BroadcastSingleData(FromServerToClientPackets.SendPropPositionXY, new PropPositionXYFromServerToClientData
+                    var localPlayer = serverApi.ServerManager.GetPlayer(id);
+                    var playersInScene = serverApi.ServerManager.Players
+                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene)
+                        .Select(remotePlayer => remotePlayer.Id).ToArray();
+                    sender.SendSingleData(FromServerToClientPackets.SendPropPositionXY, new PropPositionXYFromServerToClientData
                     {
                         PlayerId = id,
                         PositionXY = packetData.PositionXY,
-                    });
+                    }, playersInScene);
                 }
             );
 
@@ -49,11 +54,15 @@ namespace PropHunt.HKMP
                 FromClientToServerPackets.BroadcastPropPositionZ,
                 (id, packetData) =>
                 {
-                    sender.BroadcastSingleData(FromServerToClientPackets.SendPropPositionZ, new PropPositionZFromServerToClientData
+                    var localPlayer = serverApi.ServerManager.GetPlayer(id);
+                    var playersInScene = serverApi.ServerManager.Players
+                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene)
+                        .Select(remotePlayer => remotePlayer.Id).ToArray();
+                    sender.SendSingleData(FromServerToClientPackets.SendPropPositionZ, new PropPositionZFromServerToClientData
                     {
                         PlayerId = id,
                         PositionZ = packetData.PositionZ,
-                    });
+                    }, playersInScene);
                 }
             );
 
@@ -62,40 +71,50 @@ namespace PropHunt.HKMP
                 FromClientToServerPackets.BroadcastPropRotation,
                 (id, packetData) =>
                 {
-                    sender.BroadcastSingleData(FromServerToClientPackets.SendPropRotation, new PropRotationFromServerToClientData
+                    var localPlayer = serverApi.ServerManager.GetPlayer(id);
+                    var playersInScene = serverApi.ServerManager.Players
+                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene)
+                        .Select(remotePlayer => remotePlayer.Id).ToArray();
+                    sender.SendSingleData(FromServerToClientPackets.SendPropRotation, new PropRotationFromServerToClientData
                     {
                         PlayerId = id,
                         Rotation = packetData.Rotation,
-                    });
+                    }, playersInScene);
                 }
             );
 
-            serverApi.ServerManager.PlayerConnectEvent    += OnPlayerConnect;
-            serverApi.ServerManager.PlayerDisconnectEvent += OnPlayerDisconnect;
-            serverApi.ServerManager.PlayerEnterSceneEvent += OnPlayerEnterScene;
-            serverApi.ServerManager.PlayerLeaveSceneEvent += OnPlayerLeaveScene;
+            receiver.RegisterPacketHandler<PropScaleFromClientToServerData>
+            (
+                FromClientToServerPackets.BroadcastPropScale,
+                (id, packetData) =>
+                {
+                    var localPlayer = serverApi.ServerManager.GetPlayer(id);
+                    var playersInScene = serverApi.ServerManager.Players
+                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene)
+                        .Select(remotePlayer => remotePlayer.Id).ToArray();
+                    sender.SendSingleData(FromServerToClientPackets.SendPropScale, new PropScaleFromServerToClientData
+                    {
+                        PlayerId = id,
+                        ScaleFactor = packetData.ScaleFactor,
+                    }, playersInScene);
+                }
+            );
+
+            receiver.RegisterPacketHandler<SetPlayingPropHuntFromClientToServerData>
+            (
+                FromClientToServerPackets.SetPlayingPropHunt,
+                (id, packetData) =>
+                {
+                    
+                    sender.BroadcastSingleData(FromServerToClientPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromServerToClientData()
+                    {
+                        PlayerId = id,
+                        Playing = packetData.Playing,
+                    });
+                }
+            );
         }
-
-        private void OnPlayerConnect(IServerPlayer player)
-        {
-
-        }
-
-        private void OnPlayerDisconnect(IServerPlayer player)
-        {
-
-        }
-
-        private void OnPlayerEnterScene(IServerPlayer player)
-        {
-
-        }
-
-        private void OnPlayerLeaveScene(IServerPlayer player)
-        {
-
-        }
-
+        
         private static IPacketData InstantiatePacket(FromClientToServerPackets serverPacket)
         {
             switch (serverPacket)
@@ -108,6 +127,10 @@ namespace PropHunt.HKMP
                     return new PropPositionZFromClientToServerData();
                 case FromClientToServerPackets.BroadcastPropRotation:
                     return new PropRotationFromClientToServerData();
+                case FromClientToServerPackets.BroadcastPropScale:
+                    return new PropScaleFromClientToServerData();
+                case FromClientToServerPackets.SetPlayingPropHunt:
+                    return new SetPlayingPropHuntFromClientToServerData();
                 default:
                     return null;
             }
