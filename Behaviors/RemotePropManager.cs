@@ -16,12 +16,18 @@ namespace PropHunt.Behaviors
             _prop = new GameObject("Prop");
             _prop.transform.SetParent(transform);
             _prop.transform.localPosition = Vector3.zero;
+            _prop.transform.rotation = Quaternion.identity;
+            _prop.transform.localScale = Vector3.one;
             _propSprite = _prop.AddComponent<SpriteRenderer>();
         }
 
         public void SetPropSprite(Sprite sprite)
         {
             _propSprite.sprite = sprite;
+            
+            _prop.transform.localPosition = Vector3.zero;
+            _prop.transform.rotation = Quaternion.identity;
+            _prop.transform.localScale = Vector3.one;
 
             if (sprite == null)
             {

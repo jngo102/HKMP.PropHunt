@@ -5,6 +5,7 @@ using PropHunt.HKMP;
 using PropHunt.Input;
 using Satchel.BetterMenus;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -16,6 +17,9 @@ namespace PropHunt
 
         private PropHuntClientAddon _clientAddon = new();
         private PropHuntServerAddon _serverAddon = new();
+
+        public float LargestSpriteDiagonalLength;
+        public float SmallestSpriteDiagonalLength;
 
         private Menu _menu;
 
@@ -33,6 +37,10 @@ namespace PropHunt
 
             ClientAddon.RegisterAddon(_clientAddon);
             ServerAddon.RegisterAddon(_serverAddon);
+
+            var sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+            LargestSpriteDiagonalLength = sprites.Select(sprite => sprite.bounds.size.magnitude).Max();
+            SmallestSpriteDiagonalLength = sprites.Select(sprite => sprite.bounds.size.magnitude).Min();
 
             GameManager.instance.gameObject.AddComponent<PropInputHandler>();
         }
@@ -65,7 +73,7 @@ namespace PropHunt
                     PropInputHandler.Instance.InputActions.Rotate
                 ),
                 new KeyBind(
-                    "Scale Prop",
+                    "Shrink/Grow Prop",
                     PropInputHandler.Instance.InputActions.Scale
                 ),
             });

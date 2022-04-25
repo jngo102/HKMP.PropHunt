@@ -36,13 +36,9 @@ namespace PropHunt.HKMP
             (
                 FromServerToClientPackets.SendPropSprite,
                 packetData => 
-                {
+                { 
                     var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
-                    Sprite propSprite = null;
-                    if (!string.IsNullOrEmpty(packetData.SpriteName))
-                    {
-                        propSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == packetData.SpriteName);
-                    }
+                    var propSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == packetData.SpriteName);
                     PropHunt.Instance.Log("Caching sprite of player: " + packetData.PlayerId);
                     _cachedPropSprites[packetData.PlayerId] = propSprite;
                     var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
@@ -284,7 +280,6 @@ namespace PropHunt.HKMP
 
         private void OnBreakableBreak(On.Breakable.orig_Break orig, Breakable self, float flingAngleMin, float flingAngleMax, float impactMultiplier)
         {
-            PropHunt.Instance.Log("Broke " + self.name);
             orig(self, flingAngleMin, flingAngleMax, impactMultiplier);
 
             _damager.SetActive(true);
@@ -294,7 +289,7 @@ namespace PropHunt.HKMP
 
         private IEnumerator DisableDamagerDelayed()
         {
-            yield return new WaitForSeconds(0.25f);
+            yield return new WaitForSeconds(0.1f);
 
             _damager.SetActive(false);
         }

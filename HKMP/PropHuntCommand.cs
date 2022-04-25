@@ -15,7 +15,7 @@ namespace PropHunt.HKMP
             "prop",      "/prop",      @"\prop",
         };
 
-        private string[] _activateCommands = { "on", "true", "yes", "activate", "enable", "start", "begin" };
+        private string[] _activateCommands = { "on", "true", "yes", "activate", "enable", "start", "begin", "restart" };
 
         private string[] _deactivateCommands = { "off", "false", "no", "deactivate", "disable", "stop", "end" };
 

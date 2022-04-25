@@ -24,11 +24,15 @@ namespace PropHunt.HKMP
                 FromClientToServerPackets.BroadcastPropSprite,
                 (id, packetData) =>
                 {
-                    sender.BroadcastSingleData(FromServerToClientPackets.SendPropSprite, new PropSpriteFromServerToClientData
+                    var localPlayer = serverApi.ServerManager.GetPlayer(id);
+                    var otherPlayers = serverApi.ServerManager.Players
+                        .Where(remotePlayer => remotePlayer != localPlayer)
+                        .Select(remotePlayer => remotePlayer.Id).ToArray();
+                    sender.SendSingleData(FromServerToClientPackets.SendPropSprite, new PropSpriteFromServerToClientData
                     {
                         PlayerId = id,
                         SpriteName = packetData.SpriteName,
-                    });
+                    }, otherPlayers);
                 }
             );
 
