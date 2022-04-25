@@ -1,5 +1,6 @@
 using Hkmp.Api.Client.Networking;
 using PropHunt.HKMP;
+using PropHunt.Input;
 using UnityEngine;
 
 using HKMPVector2 = Hkmp.Math.Vector2;
@@ -48,7 +49,7 @@ namespace PropHunt.Behaviors
             Prop.transform.SetParent(transform);
             Prop.transform.localPosition = Vector3.zero;
             _propSprite = Prop.AddComponent<SpriteRenderer>();
-            _sender = PropHuntClient.Instance.PropHuntClientApi.NetClient.GetNetworkSender<FromClientToServerPackets>(PropHuntClient.Instance);
+            _sender = PropHuntClientAddon.Instance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(PropHuntClientAddon.Instance);
         }
 
         private void Update()
@@ -61,7 +62,7 @@ namespace PropHunt.Behaviors
         {
             if (PropSprite != null)
             {
-                if (Input.GetKeyDown(PropHunt.Instance.Settings.TranslateXYKey))
+                if (PropInputHandler.Instance.InputActions.TranslateXY.WasPressed)
                 {
                     if (_propState != PropState.TranslateXY)
                     {
@@ -78,7 +79,7 @@ namespace PropHunt.Behaviors
                     }
                 }
 
-                if (Input.GetKeyDown(PropHunt.Instance.Settings.TranslateZKey))
+                if (PropInputHandler.Instance.InputActions.TranslateZ.WasPressed)
                 {
                     if (_propState != PropState.TranslateZ)
                     {
@@ -95,7 +96,7 @@ namespace PropHunt.Behaviors
                     }
                 }
 
-                if (Input.GetKeyDown(PropHunt.Instance.Settings.RotateKey))
+                if (PropInputHandler.Instance.InputActions.Rotate.WasPressed)
                 {
                     if (_propState != PropState.Rotate)
                     {
@@ -112,7 +113,7 @@ namespace PropHunt.Behaviors
                     }
                 }
 
-                if (Input.GetKeyDown(PropHunt.Instance.Settings.ScaleKey))
+                if (PropInputHandler.Instance.InputActions.Scale.WasPressed)
                 {
                     if (_propState != PropState.Scale)
                     {
@@ -130,7 +131,7 @@ namespace PropHunt.Behaviors
                 }
             }
 
-            if (!Input.GetKeyDown(PropHunt.Instance.Settings.SelectKey)) return;
+            if (!PropInputHandler.Instance.InputActions.Select.WasPressed) return;
 
             float shortestDistance = 1;
             Breakable closestBreakable = null;
@@ -270,6 +271,14 @@ namespace PropHunt.Behaviors
                     );
                     break;
             }
+        }
+        public void ClearProp()
+        {
+            _propState = PropState.Free;
+            _propSprite.sprite = null;
+            _meshRend.enabled = true;
+            _hc.AcceptInput();
+            _hc.RegainControl();
         }
     }
 }

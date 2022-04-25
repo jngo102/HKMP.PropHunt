@@ -27,6 +27,11 @@ jobs:
         run: |
           mkdir References/HKMP
           wget https://github.com/Extremelyd1/HKMP/releases/latest/download/HKMP.dll -O References/HKMP/HKMP.dll
+
+      - name: Fetch Satchel dependency
+        run: |
+          mkdir References/Satchel
+          wget https://github.com/PrashantMohta/Satchel/releases/latest/download/Satchel.dll -O References/Satchel/Satchel.dll
           
       - name: Setup MSBuild
         run: |

@@ -1,11 +1,13 @@
+using InControl;
+
 namespace PropHunt
 {
     public class GlobalSettings
     {
-        public string SelectKey { get; set; } = "m";
-        public string TranslateXYKey { get; set; } = "y";
-        public string TranslateZKey { get; set; } = "u";
-        public string RotateKey { get; set; } = "r";
-        public string ScaleKey { get; set; } = "c";
+        public int SelectKey { get; set; } = (int)Key.M;
+        public int TranslateXYKey { get; set; } = (int)Key.Y;
+        public int TranslateZKey { get; set; } = (int)Key.U;
+        public int RotateKey { get; set; } = (int)Key.R;
+        public int ScaleKey { get; set; } = (int)Key.C;
     }
 }

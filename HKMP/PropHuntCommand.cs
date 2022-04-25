@@ -15,15 +15,15 @@ namespace PropHunt.HKMP
             "prop",      "/prop",      @"\prop",
         };
 
-        private string[] _activateCommands = { "on", "true", "yes", "activate", "enable" };
+        private string[] _activateCommands = { "on", "true", "yes", "activate", "enable", "start", "begin" };
 
-        private string[] _deactivateCommands = { "off", "false", "no", "deactivate", "disable" };
+        private string[] _deactivateCommands = { "off", "false", "no", "deactivate", "disable", "stop", "end" };
 
 
         public void Execute(string[] arguments)
         {
-            var propHuntInstance = PropHuntClient.Instance;
-            var sender = propHuntInstance.PropHuntClientApi.NetClient.GetNetworkSender<FromClientToServerPackets>(propHuntInstance);
+            var propHuntInstance = PropHuntClientAddon.Instance;
+            var sender = propHuntInstance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(propHuntInstance);
 
             var propManager = HeroController.instance.GetComponent<LocalPropManager>();
 

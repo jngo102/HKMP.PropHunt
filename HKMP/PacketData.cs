@@ -1,5 +1,5 @@
-using Hkmp.Networking.Packet;
 using Hkmp.Math;
+using Hkmp.Networking.Packet;
 
 namespace PropHunt.HKMP
 {

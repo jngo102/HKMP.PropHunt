@@ -1,16 +1,16 @@
-using System.Linq;
 using Hkmp.Api.Server;
 using Hkmp.Networking.Packet;
+using System.Linq;
 
 namespace PropHunt.HKMP
 {
-    internal class PropHuntServer : ServerAddon
+    internal class PropHuntServerAddon : ServerAddon
     {
         protected override string Name => "Prop Hunt";
         protected override string Version => PropHunt.Instance.GetVersion();
         public override bool NeedsNetwork => true;
 
-        public static PropHuntServer Instance { get; private set; }
+        public static PropHuntServerAddon Instance { get; private set; }
 
         public override void Initialize(IServerApi serverApi)
         {
@@ -39,7 +39,7 @@ namespace PropHunt.HKMP
                 {
                     var localPlayer = serverApi.ServerManager.GetPlayer(id);
                     var playersInScene = serverApi.ServerManager.Players
-                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene)
+                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene && remotePlayer != localPlayer)
                         .Select(remotePlayer => remotePlayer.Id).ToArray();
                     sender.SendSingleData(FromServerToClientPackets.SendPropPositionXY, new PropPositionXYFromServerToClientData
                     {
@@ -56,7 +56,7 @@ namespace PropHunt.HKMP
                 {
                     var localPlayer = serverApi.ServerManager.GetPlayer(id);
                     var playersInScene = serverApi.ServerManager.Players
-                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene)
+                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene && remotePlayer != localPlayer)
                         .Select(remotePlayer => remotePlayer.Id).ToArray();
                     sender.SendSingleData(FromServerToClientPackets.SendPropPositionZ, new PropPositionZFromServerToClientData
                     {
@@ -73,7 +73,7 @@ namespace PropHunt.HKMP
                 {
                     var localPlayer = serverApi.ServerManager.GetPlayer(id);
                     var playersInScene = serverApi.ServerManager.Players
-                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene)
+                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene && remotePlayer != localPlayer)
                         .Select(remotePlayer => remotePlayer.Id).ToArray();
                     sender.SendSingleData(FromServerToClientPackets.SendPropRotation, new PropRotationFromServerToClientData
                     {
@@ -90,7 +90,7 @@ namespace PropHunt.HKMP
                 {
                     var localPlayer = serverApi.ServerManager.GetPlayer(id);
                     var playersInScene = serverApi.ServerManager.Players
-                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene)
+                        .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene && remotePlayer != localPlayer)
                         .Select(remotePlayer => remotePlayer.Id).ToArray();
                     sender.SendSingleData(FromServerToClientPackets.SendPropScale, new PropScaleFromServerToClientData
                     {

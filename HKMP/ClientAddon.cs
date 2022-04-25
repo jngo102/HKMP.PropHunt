@@ -1,6 +1,8 @@
+using GlobalEnums;
 using Hkmp.Api.Client;
 using Hkmp.Networking.Packet;
 using PropHunt.Behaviors;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -9,21 +11,24 @@ using HKMPVector2 = Hkmp.Math.Vector2;
 
 namespace PropHunt.HKMP
 {
-    internal class PropHuntClient : ClientAddon
+    internal class PropHuntClientAddon : ClientAddon
     {
         protected override string Name => "Prop Hunt";
         protected override string Version => PropHunt.Instance.GetVersion();
         public override bool NeedsNetwork => true;
 
+        
         private Dictionary<ushort, Sprite> _cachedPropSprites = new();
+        
+        private GameObject _damager;
 
-        public static PropHuntClient Instance { get; private set; }
-        public IClientApi PropHuntClientApi { get; private set; }
+        public static PropHuntClientAddon Instance { get; private set; }
+        public IClientApi PropHuntClientAddonApi { get; private set; }
 
         public override void Initialize(IClientApi clientApi)
         {
             Instance = this;
-            PropHuntClientApi = clientApi;
+            PropHuntClientAddonApi = clientApi;
             
             var receiver = clientApi.NetClient.GetNetworkReceiver<FromServerToClientPackets>(Instance, InstantiatePacket);
 
@@ -96,11 +101,31 @@ namespace PropHunt.HKMP
                 FromServerToClientPackets.SetPlayingPropHunt,
                 packetData =>
                 {
-                    HeroController.instance.GetComponent<LocalPropManager>().enabled = packetData.Playing;
+                    var propManager = HeroController.instance.GetComponent<LocalPropManager>();
+                    if (packetData.Playing)
+                    {
+                        On.Breakable.Break += OnBreakableBreak;
+                    }
+                    else
+                    {
+                        propManager.ClearProp();
+                        On.Breakable.Break -= OnBreakableBreak;
+                    }
+
+                    propManager.enabled = packetData.Playing;
                 }
             );
 
             clientApi.CommandManager.RegisterCommand(new PropHuntCommand());
+
+            _damager = new GameObject("Damager");
+            _damager.layer = (int)PhysLayers.ENEMIES;
+            _damager.AddComponent<DamageHero>().damageDealt = 1;
+            var col = _damager.AddComponent<CircleCollider2D>();
+            col.isTrigger = true;
+            col.radius = 1;
+            Object.DontDestroyOnLoad(_damager);
+            _damager.SetActive(false);
 
             clientApi.ClientManager.ConnectEvent          += OnConnect;
             clientApi.ClientManager.PlayerConnectEvent    += OnPlayerConnect;
@@ -121,7 +146,7 @@ namespace PropHunt.HKMP
 
             if (!propManager.enabled) return;
 
-            var sender = PropHuntClientApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
+            var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
 
             string propName = propManager.PropSprite?.name;
 
@@ -192,7 +217,7 @@ namespace PropHunt.HKMP
 
             var heroPropManager = HeroController.instance.GetComponent<LocalPropManager>();
 
-            var sender = PropHuntClientApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
+            var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
             sender.SendSingleData(
                 FromClientToServerPackets.BroadcastPropSprite,
                 new PropSpriteFromClientToServerData
@@ -255,6 +280,23 @@ namespace PropHunt.HKMP
                 default:
                     return null;
             }
+        }
+
+        private void OnBreakableBreak(On.Breakable.orig_Break orig, Breakable self, float flingAngleMin, float flingAngleMax, float impactMultiplier)
+        {
+            PropHunt.Instance.Log("Broke " + self.name);
+            orig(self, flingAngleMin, flingAngleMax, impactMultiplier);
+
+            _damager.SetActive(true);
+            _damager.transform.SetPosition2D(HeroController.instance.transform.position);
+            GameManager.instance.StartCoroutine(DisableDamagerDelayed());
+        }
+
+        private IEnumerator DisableDamagerDelayed()
+        {
+            yield return new WaitForSeconds(0.25f);
+
+            _damager.SetActive(false);
         }
     }
 }
