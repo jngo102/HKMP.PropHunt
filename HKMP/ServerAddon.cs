@@ -1,6 +1,10 @@
+using System;
 using Hkmp.Api.Server;
 using Hkmp.Networking.Packet;
 using System.Linq;
+using Hkmp.Game;
+using PropHunt.Behaviors;
+using Random = UnityEngine.Random;
 
 namespace PropHunt.HKMP
 {
@@ -109,12 +113,27 @@ namespace PropHunt.HKMP
                 FromClientToServerPackets.SetPlayingPropHunt,
                 (id, packetData) =>
                 {
-                    
-                    sender.BroadcastSingleData(FromServerToClientPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromServerToClientData()
+                    var players = serverApi.ServerManager.Players.ToList();
+                    players = players.OrderBy(_ => Guid.NewGuid()).ToList();
+                    int halfCount = players.Count / 2;
+                    var hunters = players.GetRange(0, halfCount);
+                    var props = players.GetRange(halfCount, players.Count - halfCount);
+
+                    sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromServerToClientData
                     {
+                        PropHuntTeam = (byte)PropHuntTeam.Hunters,
                         PlayerId = id,
                         Playing = packetData.Playing,
-                    });
+                        GracePeriod = packetData.GracePeriod,
+                    }, hunters.Select(hunter => hunter.Id).ToArray());
+
+                    sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromServerToClientData
+                    {
+                        PropHuntTeam = (byte)PropHuntTeam.Props,
+                        PlayerId = id,
+                        Playing = packetData.Playing,
+                        GracePeriod = packetData.GracePeriod,
+                    }, props.Select(prop => prop.Id).ToArray());
                 }
             );
         }

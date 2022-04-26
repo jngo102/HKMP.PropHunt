@@ -5,6 +5,7 @@ using PropHunt.Behaviors;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Hkmp.Game;
 using UnityEngine;
 
 using HKMPVector2 = Hkmp.Math.Vector2;
@@ -38,7 +39,10 @@ namespace PropHunt.HKMP
                 packetData => 
                 { 
                     var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
-                    var propSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == packetData.SpriteName);
+                    var propSprite = string.IsNullOrEmpty(packetData.SpriteName)
+                        ? null
+                        : Resources.FindObjectsOfTypeAll<Sprite>()
+                            .First(sprite => sprite.name == packetData.SpriteName);
                     PropHunt.Instance.Log("Caching sprite of player: " + packetData.PlayerId);
                     _cachedPropSprites[packetData.PlayerId] = propSprite;
                     var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
@@ -98,17 +102,49 @@ namespace PropHunt.HKMP
                 packetData =>
                 {
                     var propManager = HeroController.instance.GetComponent<LocalPropManager>();
-                    if (packetData.Playing)
+                    var hunter = HeroController.instance.GetComponent<Hunter>();
+                    var playing = packetData.Playing;
+                    if (playing)
                     {
                         On.Breakable.Break += OnBreakableBreak;
+
+                        var dreamMsg = GameCameras.instance.hudCamera.transform.Find("DialogueManager/Dream Msg");
+                        var dreamFSM = dreamMsg.gameObject.LocateMyFSM("Display");
+
+                        if (packetData.PropHuntTeam == (byte)PropHuntTeam.Hunters)
+                        {
+                            clientApi.ClientManager.ChangeTeam(Team.Grimm);
+
+                            hunter.enabled = true;
+                            propManager.enabled = false;
+
+                            PropHunt.Instance.Log("You are a HUNTER");
+
+                            dreamFSM.Fsm.GetFsmString("Sheet").Value = "PROP_HUNT";
+                            dreamFSM.Fsm.GetFsmString("Convo Title").Value = "HUNTER_MESSAGE";
+                            dreamFSM.SendEvent("DISPLAY DREAM MSG");
+                            
+                            GameManager.instance.StartCoroutine(GracePeriod(packetData.GracePeriod));
+                        }
+                        else if (packetData.PropHuntTeam == (byte)PropHuntTeam.Props)
+                        {
+                            clientApi.ClientManager.ChangeTeam(Team.Moss);
+
+                            hunter.enabled = false;
+                            propManager.enabled = true;
+
+                            PropHunt.Instance.Log("You are a PROP");
+
+                            dreamFSM.Fsm.GetFsmString("Sheet").Value = "PROP_HUNT";
+                            dreamFSM.Fsm.GetFsmString("Convo Title").Value = "PROP_MESSAGE";
+                            dreamFSM.SendEvent("DISPLAY DREAM MSG");
+                        }
                     }
                     else
                     {
                         propManager.ClearProp();
                         On.Breakable.Break -= OnBreakableBreak;
                     }
-
-                    propManager.enabled = packetData.Playing;
                 }
             );
 
@@ -130,6 +166,10 @@ namespace PropHunt.HKMP
 
         private void OnConnect()
         {
+            var hunter = HeroController.instance.GetComponent<Hunter>();
+            hunter ??= HeroController.instance.gameObject.AddComponent<Hunter>();
+            hunter.enabled = false;
+
             var propManager = HeroController.instance.GetComponent<LocalPropManager>();
             propManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
             propManager.enabled = false;
@@ -203,15 +243,18 @@ namespace PropHunt.HKMP
         {
             var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
             propManager ??= player.PlayerObject.AddComponent<RemotePropManager>();
-
+            
             if (!propManager.enabled) return;
-
+            
             if (_cachedPropSprites.ContainsKey(player.Id))
             {
                 propManager.SetPropSprite(_cachedPropSprites[player.Id]);
             }
-
+            
             var heroPropManager = HeroController.instance.GetComponent<LocalPropManager>();
+            heroPropManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
+            
+            if (heroPropManager.PropSprite == null) return;
 
             var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
             sender.SendSingleData(
@@ -221,7 +264,7 @@ namespace PropHunt.HKMP
                     SpriteName = heroPropManager.PropSprite.name,
                 }
             );
-
+            
             sender.SendSingleData(
                 FromClientToServerPackets.BroadcastPropPositionXY,
                 new PropPositionXYFromClientToServerData
@@ -292,6 +335,19 @@ namespace PropHunt.HKMP
             yield return new WaitForSeconds(0.1f);
 
             _damager.SetActive(false);
+        }
+
+        private IEnumerator GracePeriod(float gracePeriod)
+        {
+            HeroController.instance.IgnoreInput();
+            HeroController.instance.RelinquishControl();
+            InputHandler.Instance.inputActions.quickMap.Enabled = false;
+
+            yield return new WaitForSeconds(gracePeriod);
+
+            HeroController.instance.AcceptInput();
+            HeroController.instance.RegainControl();
+            InputHandler.Instance.inputActions.quickMap.Enabled = true;
         }
     }
 }

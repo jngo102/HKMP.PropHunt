@@ -10,20 +10,17 @@ namespace PropHunt.HKMP
         public bool DropReliableDataIfNewerExists => true;
 
         public ushort PlayerId { get; set; }
-
         public string SpriteName { get; set; }
 
         public void ReadData(IPacket packet)
         {
             PlayerId = packet.ReadUShort();
-
             SpriteName = packet.ReadString();
         }
 
         public void WriteData(IPacket packet)
         {
             packet.Write(PlayerId);
-
             packet.Write(SpriteName);
         }
     }
@@ -34,20 +31,17 @@ namespace PropHunt.HKMP
         public bool DropReliableDataIfNewerExists => false;
 
         public ushort PlayerId { get; set; }
-
         public Vector2 PositionXY { get; set; }
 
         public void ReadData(IPacket packet)
         {
             PlayerId = packet.ReadUShort();
-
             PositionXY = packet.ReadVector2();
         }
 
         public void WriteData(IPacket packet)
         {
             packet.Write(PlayerId);
-
             packet.Write(PositionXY);
         }
     }
@@ -58,20 +52,17 @@ namespace PropHunt.HKMP
         public bool DropReliableDataIfNewerExists => false;
 
         public ushort PlayerId { get; set; }
-
         public float PositionZ { get; set; }
 
         public void ReadData(IPacket packet)
         {
             PlayerId = packet.ReadUShort();
-
             PositionZ = packet.ReadFloat();
         }
 
         public void WriteData(IPacket packet)
         {
             packet.Write(PlayerId);
-
             packet.Write(PositionZ);
         }
     }
@@ -82,20 +73,17 @@ namespace PropHunt.HKMP
         public bool DropReliableDataIfNewerExists => false;
 
         public ushort PlayerId { get; set; }
-
         public float Rotation { get; set; }
 
         public void ReadData(IPacket packet)
         {
             PlayerId = packet.ReadUShort();
-
             Rotation = packet.ReadFloat();
         }
 
         public void WriteData(IPacket packet)
         {
             packet.Write(PlayerId);
-
             packet.Write(Rotation);
         }
     }
@@ -106,20 +94,17 @@ namespace PropHunt.HKMP
         public bool DropReliableDataIfNewerExists => false;
 
         public ushort PlayerId { get; set; }
-
         public float ScaleFactor { get; set; }
 
         public void ReadData(IPacket packet)
         {
             PlayerId = packet.ReadUShort();
-
             ScaleFactor = packet.ReadFloat();
         }
 
         public void WriteData(IPacket packet)
         {
             packet.Write(PlayerId);
-
             packet.Write(ScaleFactor);
         }
     }
@@ -128,23 +113,32 @@ namespace PropHunt.HKMP
     {
         public bool IsReliable => true;
         public bool DropReliableDataIfNewerExists => true;
-
+        
         public ushort PlayerId { get; set; }
-
         public bool Playing { get; set; }
+        public byte PropHuntTeam { get; set; }
+        public float GracePeriod { get; set; }
 
         public void ReadData(IPacket packet)
         {
             PlayerId = packet.ReadUShort();
-
             Playing = packet.ReadBool();
+            if (Playing)
+            {
+                PropHuntTeam = packet.ReadByte();
+                GracePeriod = packet.ReadFloat();
+            }
         }
 
         public void WriteData(IPacket packet)
         {
             packet.Write(PlayerId);
-
             packet.Write(Playing);
+            if (Playing)
+            {
+                packet.Write(PropHuntTeam);
+                packet.Write(GracePeriod);
+            }
         }
     }
 
@@ -257,15 +251,24 @@ namespace PropHunt.HKMP
         public bool DropReliableDataIfNewerExists => false;
 
         public bool Playing { get; set; }
+        public float GracePeriod { get; set; }
 
         public void ReadData(IPacket packet)
         {
             Playing = packet.ReadBool();
+            if (Playing)
+            {
+                GracePeriod = packet.ReadFloat();
+            }
         }
 
         public void WriteData(IPacket packet)
         {
             packet.Write(Playing);
+            if (Playing)
+            {
+                packet.Write(GracePeriod);
+            }
         }
     }
 

@@ -18,9 +18,6 @@ namespace PropHunt
         private PropHuntClientAddon _clientAddon = new();
         private PropHuntServerAddon _serverAddon = new();
 
-        public float LargestSpriteDiagonalLength;
-        public float SmallestSpriteDiagonalLength;
-
         private Menu _menu;
 
         public GlobalSettings Settings { get; private set; } = new();
@@ -37,16 +34,28 @@ namespace PropHunt
 
             ClientAddon.RegisterAddon(_clientAddon);
             ServerAddon.RegisterAddon(_serverAddon);
-
-            var sprites = Resources.FindObjectsOfTypeAll<Sprite>();
-            LargestSpriteDiagonalLength = sprites.Select(sprite => sprite.bounds.size.magnitude).Max();
-            SmallestSpriteDiagonalLength = sprites.Select(sprite => sprite.bounds.size.magnitude).Min();
-
+            
             GameManager.instance.gameObject.AddComponent<PropInputHandler>();
+
+            ModHooks.LanguageGetHook += OnLanguageGet;
         }
 
         public void OnLoadGlobal(GlobalSettings s) => Settings = s;
         public GlobalSettings OnSaveGlobal() => Settings;
+
+        private string OnLanguageGet(string key, string sheetTitle, string orig)
+        {
+            if (sheetTitle == "PROP_HUNT")
+            {
+                switch (key)
+                {
+                    case "HUNTER_MESSAGE": return "You are now a hunter!";
+                    case "PROP_MESSAGE": return "You are now a prop!";
+                }
+            }
+
+            return orig;
+        }
 
         public MenuScreen GetMenuScreen(MenuScreen modListMenu, ModToggleDelegates? toggleDelegates)
         {

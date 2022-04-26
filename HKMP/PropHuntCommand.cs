@@ -1,5 +1,4 @@
 ﻿using Hkmp.Api.Command.Client;
-using PropHunt.Behaviors;
 using System.Linq;
 
 namespace PropHunt.HKMP
@@ -25,22 +24,26 @@ namespace PropHunt.HKMP
             var propHuntInstance = PropHuntClientAddon.Instance;
             var sender = propHuntInstance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(propHuntInstance);
 
-            var propManager = HeroController.instance.GetComponent<LocalPropManager>();
+            float gracePeriodArg = 15;
+            if (arguments.Length > 2)
+            {
+                gracePeriodArg = float.Parse(arguments[2]);
+            }
 
             if (_activateCommands.Contains(arguments[1].ToLower()))
             {
-                propManager.enabled = true;
                 sender.SendSingleData(FromClientToServerPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromClientToServerData()
                 {
                     Playing = true,
+                    GracePeriod = gracePeriodArg,
                 });
             }
             else if (_deactivateCommands.Contains(arguments[1].ToLower()))
             {
-                propManager.enabled = false;
                 sender.SendSingleData(FromClientToServerPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromClientToServerData()
                 {
                     Playing = false,
+                    GracePeriod = gracePeriodArg,
                 });
             }
         }

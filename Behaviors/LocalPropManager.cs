@@ -1,24 +1,20 @@
+using System.Collections;
 using Hkmp.Api.Client.Networking;
 using PropHunt.HKMP;
 using PropHunt.Input;
 using PropHunt.Util;
+using System.Collections.Generic;
 using UnityEngine;
-
 using HKMPVector2 = Hkmp.Math.Vector2;
 
 namespace PropHunt.Behaviors
 {
-    internal enum PropState
-    {
-        Free,
-        TranslateXY,
-        TranslateZ,
-        Rotate,
-        Scale,
-    }
-
+    [RequireComponent(typeof(HeroController))]
+    [RequireComponent(typeof(MeshRenderer))]
     internal class LocalPropManager : MonoBehaviour
     {
+        private const float SHORTEST_DISTANCE = 2;
+
         private const float TRANSLATE_XY_SPEED = 1f;
         private const float TRANSLATE_Z_SPEED = 1f;
         private const float ROTATE_SPEED = 20f;
@@ -30,15 +26,19 @@ namespace PropHunt.Behaviors
         private const float MIN_SCALE = 0.75f;
         private const float MAX_SCALE = 1.5f;
 
-        private const float PROP_SPEED_MIN = 5;
-        private const float PROP_SPEED_MAX = 15;
-        private const int PROP_HEALTH_MIN = 1;
+        private const int PROP_HEALTH_MIN = 2;
         private const int PROP_HEALTH_MAX = 11;
 
+        private const float LARGEST_SPRITE_AREA = 25;
+        private const float SMALLEST_SPRITE_AREA = 0;
+
+        private Vector2 _origColSize;
         private int _origMaxHealth;
         private int _origHealth;
-        private float _origRunSpeed;
 
+        private readonly List<PlayMakerFSM> _healthDisplays = new();
+
+        private BoxCollider2D _col;
         private HeroController _hc;
         private HeroActions _heroInput;
         private PropActions _propInput;
@@ -53,7 +53,8 @@ namespace PropHunt.Behaviors
 
         private void Awake()
         {
-            _hc = HeroController.instance;
+            _col = GetComponent<BoxCollider2D>();
+            _hc = GetComponent<HeroController>();
             _heroInput = GameManager.instance.inputHandler.inputActions;
             _propInput = PropInputHandler.Instance.InputActions;
             _meshRend = GetComponent<MeshRenderer>();
@@ -65,17 +66,27 @@ namespace PropHunt.Behaviors
             _propSprite = Prop.AddComponent<SpriteRenderer>();
             _sender = PropHuntClientAddon.Instance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(PropHuntClientAddon.Instance);
 
+            _origColSize = _col.size;
             _origHealth = _pd.health;
             _origMaxHealth = _pd.maxHealth;
-            _origRunSpeed = _hc.RUN_SPEED;
+        }
 
-            EnableInput(false);
+        private IEnumerator Start()
+        {
+            yield return new WaitUntil(() => GameCameras.instance.hudCanvas.transform.Find("Health/Health 1").gameObject != null);
+
+            var healthParent = GameCameras.instance.hudCanvas.transform.Find("Health");
+            for (int healthNum = 1; healthNum <= 11; healthNum++)
+            {
+                var health = healthParent.Find($"Health {healthNum}").gameObject;
+                _healthDisplays.Add(health.LocateMyFSM("health_display"));
+            }
         }
 
         private void Update()
         {
             ReadPropStateInputs();
-            ReadMovementInputs(); 
+            ReadMovementInputs();
         }
 
         private void OnEnable()
@@ -91,19 +102,29 @@ namespace PropHunt.Behaviors
 
         private void EnableInput(bool enable)
         {
-            Modding.Logger.Log("Enabling input: " + enable);
-            _heroInput.attack.Enabled = enable;
-            _heroInput.cast.Enabled = enable;
-            _heroInput.dreamNail.Enabled = enable;
-            _heroInput.focus.Enabled = enable;
-            _heroInput.quickCast.Enabled = enable;
-
-            Modding.Logger.Log("Attack enabled? " + _heroInput.attack.EnabledInHierarchy);
-            Modding.Logger.Log("Cast enabled? " + _heroInput.cast.EnabledInHierarchy);
-            Modding.Logger.Log("DreamNail enabled? " + _heroInput.dreamNail.EnabledInHierarchy);
-            Modding.Logger.Log("Focus enabled? " + _heroInput.focus.EnabledInHierarchy);
-            Modding.Logger.Log("QuickCast enabled? " + _heroInput.quickCast.EnabledInHierarchy);
+            if (enable)
+            {
+                On.HeroController.CanAttack     -= RemoveAttack;
+                On.HeroController.CanCast       -= RemoveCast;
+                On.HeroController.CanDreamNail  -= RemoveDreamNail;
+                On.HeroController.CanFocus      -= RemoveFocus;
+                On.HeroController.CanNailCharge -= RemoveNailCharge;
+            }
+            else
+            {
+                On.HeroController.CanAttack     += RemoveAttack;
+                On.HeroController.CanCast       += RemoveCast;
+                On.HeroController.CanDreamNail  += RemoveDreamNail;
+                On.HeroController.CanFocus      += RemoveFocus;
+                On.HeroController.CanNailCharge += RemoveNailCharge;
+            }
         }
+
+        private bool RemoveAttack(On.HeroController.orig_CanAttack orig, HeroController self) => false;
+        private bool RemoveCast(On.HeroController.orig_CanCast orig, HeroController self) => false;
+        private bool RemoveDreamNail(On.HeroController.orig_CanDreamNail orig, HeroController self) => false;
+        private bool RemoveFocus(On.HeroController.orig_CanFocus orig, HeroController self) => false;
+        private bool RemoveNailCharge(On.HeroController.orig_CanNailCharge orig, HeroController self) => false;
 
         private void ReadPropStateInputs()
         {
@@ -180,44 +201,41 @@ namespace PropHunt.Behaviors
 
             if (!_propInput.Select.WasPressed) return;
 
-            float shortestDistance = 1;
+            float shortestDistance = SHORTEST_DISTANCE;
             Breakable closestBreakable = null;
             foreach (var breakable in FindObjectsOfType<Breakable>())
             {
-                float distance = Vector2.Distance(breakable.transform.position, HeroController.instance.transform.position);
+                float distance = Vector2.Distance(breakable.transform.position, _hc.transform.position);
                 if (distance < shortestDistance)
                 {
                     shortestDistance = distance;
                     closestBreakable = breakable;
                 }
             }
-
+            
             _propState = PropState.Free;
-
+            
             string spriteName = "";
             var breakSprite = closestBreakable?.GetComponentInChildren<SpriteRenderer>().sprite;
+            var breakCol = closestBreakable?.GetComponentInChildren<BoxCollider2D>();
             _propSprite.sprite = breakSprite;
             if (breakSprite != null)
             {
-                _heroInput.dash.Enabled = false;
-                _heroInput.superDash.Enabled = false;
+                _col.size = breakCol.size;
 
-                var diagonalLength = breakSprite.bounds.size.magnitude;
-                var healthRatio = _pd.health / _pd.maxHealth;
-                _pd.maxHealth = (int)MathUtil.Map(
-                    diagonalLength, 
-                    PropHunt.Instance.SmallestSpriteDiagonalLength,
-                    PropHunt.Instance.LargestSpriteDiagonalLength,
+                Vector2 breakSize = breakSprite.bounds.size;
+                var area = breakSize.x * breakSize.y;
+                var healthRatio = _pd.health / (float)_pd.maxHealth;
+                float maxHealth = MathUtil.Map(
+                    area,
+                    SMALLEST_SPRITE_AREA,
+                    LARGEST_SPRITE_AREA,
                     PROP_HEALTH_MIN,
                     PROP_HEALTH_MAX);
+                maxHealth = Mathf.Clamp(maxHealth, PROP_HEALTH_MIN, PROP_HEALTH_MAX);
+                _pd.maxHealth = (int)maxHealth;
                 _pd.health = Mathf.FloorToInt(healthRatio * _pd.maxHealth);
-                _hc.RUN_SPEED = (int)MathUtil.Map(
-                    diagonalLength, 
-                    PropHunt.Instance.SmallestSpriteDiagonalLength,
-                    PropHunt.Instance.LargestSpriteDiagonalLength,
-                    PROP_SPEED_MAX,
-                    PROP_SPEED_MIN);
-                Modding.Logger.Log("New run speed: " + _hc.RUN_SPEED);
+                _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
 
                 spriteName = breakSprite.name;
                 _propSprite.transform.localPosition = Vector3.zero;
@@ -230,7 +248,7 @@ namespace PropHunt.Behaviors
             {
                 ClearProp();
             }
-
+            
             _sender.SendSingleData
             (
                 FromClientToServerPackets.BroadcastPropSprite,
@@ -257,7 +275,7 @@ namespace PropHunt.Behaviors
                         FromClientToServerPackets.BroadcastPropPositionXY,
                         new PropPositionXYFromClientToServerData
                         {
-                            PositionXY = new Hkmp.Math.Vector2(Prop.transform.localPosition.x, Prop.transform.localPosition.y),
+                            PositionXY = new HKMPVector2(Prop.transform.localPosition.x, Prop.transform.localPosition.y),
                         }
                     );
                     break;
@@ -304,18 +322,26 @@ namespace PropHunt.Behaviors
         }
         public void ClearProp()
         {
-            _heroInput.dash.Enabled = true;
-            _heroInput.superDash.Enabled = true;
+            _col.size = _origColSize;
 
             _pd.health = _origHealth;
             _pd.maxHealth = _origMaxHealth;
-            _hc.RUN_SPEED = _origRunSpeed;
+            _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
 
             _propState = PropState.Free;
             _propSprite.sprite = null;
             _meshRend.enabled = true;
             _hc.AcceptInput();
             _hc.RegainControl();
+
+            _sender.SendSingleData
+            (
+                FromClientToServerPackets.BroadcastPropSprite,
+                new PropSpriteFromClientToServerData
+                {
+                    SpriteName = string.Empty,
+                }
+            );
         }
     }
 }

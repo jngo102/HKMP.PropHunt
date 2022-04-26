@@ -24,7 +24,7 @@
 		<!-- Path to mods folder of one installation of Hollow Knight -->
 		<ModsPath1>$(MSBuildProgramFiles32)/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed/Mods</ModsPath1>
 		<!-- Path to mods folder of another installation of Hollow Knight -->
-		<!--ModsPath2>C:/HK/Versions/GOG_1.5/Hollow%20Knight_Data/Managed/Mods</ModsPath2-->
+		<ModsPath2>C:/HK/Versions/GOG_1.5/Hollow%20Knight_Data/Managed/Mods</ModsPath2>
 		<!-- Path to DLL references required to build mod -->
 		<LocalRefs>$(MSBuildProgramFiles32)/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed</LocalRefs>
 		<!-- The folder that exports will be generated in -->
@@ -62,9 +62,9 @@
 		<RemoveDir Condition="Exists('$(ModsPath1)/$(TargetName)')" Directories="$(ModsPath1)/$(TargetName)" />
 		<MakeDir Directories="$(ModsPath1)/$(TargetName)" />
 		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath1)/$(TargetName)" />
-		<!--RemoveDir Condition="Exists('$(ModsPath2)/$(TargetName)')" Directories="$(ModsPath2)/$(TargetName)" /-->
-		<!--MakeDir Directories="$(ModsPath2)/$(TargetName)" /-->
-		<!--Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath2)/$(TargetName)" /-->
+		<RemoveDir Condition="Exists('$(ModsPath2)/$(TargetName)')" Directories="$(ModsPath2)/$(TargetName)" />
+		<MakeDir Directories="$(ModsPath2)/$(TargetName)" />
+		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath2)/$(TargetName)" />
 		<!-- Uncomment this if you have the game installed on Steam, Steam is in your PATH environment variable, and you want to run the game upon build. -->
 		<Exec Command="steam steam://rungameid/367520" />
 	</Target>

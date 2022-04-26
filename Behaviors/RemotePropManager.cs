@@ -2,6 +2,7 @@ using UnityEngine;
 
 namespace PropHunt.Behaviors
 {
+    [RequireComponent(typeof(MeshRenderer))]
     internal class RemotePropManager : MonoBehaviour
     {
         private MeshRenderer _meshRend;
