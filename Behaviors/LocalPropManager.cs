@@ -4,6 +4,7 @@ using PropHunt.HKMP;
 using PropHunt.Input;
 using PropHunt.Util;
 using System.Collections.Generic;
+using Modding;
 using UnityEngine;
 using HKMPVector2 = Hkmp.Math.Vector2;
 
@@ -92,14 +93,26 @@ namespace PropHunt.Behaviors
         private void OnEnable()
         {
             EnableInput(false);
+            ModHooks.BeforePlayerDeadHook += OnPlayerDeath;
         }
 
         private void OnDisable()
         {
             ClearProp();
             EnableInput(true);
+            ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
         }
 
+        private void OnPlayerDeath()
+        {
+            PropHunt.Instance.Log("You have died.");
+            _sender.SendSingleData(FromClientToServerPackets.PlayerDeath, new PlayerDeathFromClientToServerData());
+        }
+
+        /// <summary>
+        /// Enable or disable inputs of a player on the prop team.
+        /// </summary>
+        /// <param name="enable">Whether to enable or disable the set of inputs.</param>
         private void EnableInput(bool enable)
         {
             if (enable)
@@ -119,13 +132,16 @@ namespace PropHunt.Behaviors
                 On.HeroController.CanNailCharge += RemoveNailCharge;
             }
         }
-
+        
         private bool RemoveAttack(On.HeroController.orig_CanAttack orig, HeroController self) => false;
         private bool RemoveCast(On.HeroController.orig_CanCast orig, HeroController self) => false;
         private bool RemoveDreamNail(On.HeroController.orig_CanDreamNail orig, HeroController self) => false;
         private bool RemoveFocus(On.HeroController.orig_CanFocus orig, HeroController self) => false;
         private bool RemoveNailCharge(On.HeroController.orig_CanNailCharge orig, HeroController self) => false;
 
+        /// <summary>
+        /// Change the prop's state based on input.
+        /// </summary>
         private void ReadPropStateInputs()
         {
             if (PropSprite != null)
@@ -259,6 +275,9 @@ namespace PropHunt.Behaviors
             );
         }
 
+        /// <summary>
+        /// While the prop state is not free, read inputs to determine how to transform the prop.
+        /// </summary>
         private void ReadMovementInputs()
         {
             switch (_propState)
@@ -280,7 +299,8 @@ namespace PropHunt.Behaviors
                     );
                     break;
                 case PropState.TranslateZ:
-                    var moveZ = Vector3.forward * _heroInput.moveVector.Value.y * Time.deltaTime * TRANSLATE_Z_SPEED;
+                    float inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0 ? _heroInput.moveVector.Value.y : _heroInput.moveVector.Value.x;
+                    var moveZ = Vector3.forward * inputValue * Time.deltaTime * TRANSLATE_Z_SPEED;
                     Prop.transform.localPosition += moveZ;
                     clampedPos = new Vector3(Prop.transform.localPosition.x, Prop.transform.localPosition.y, Mathf.Clamp(Prop.transform.localPosition.z, MIN_Z, MAX_Z));
                     Prop.transform.localPosition = clampedPos;
@@ -294,7 +314,8 @@ namespace PropHunt.Behaviors
                     );
                     break;
                 case PropState.Rotate:
-                    var rotateZ = _heroInput.moveVector.Value.x * Time.deltaTime * ROTATE_SPEED;
+                    inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0 ? _heroInput.moveVector.Value.y : _heroInput.moveVector.Value.x;
+                    var rotateZ = inputValue * Time.deltaTime * ROTATE_SPEED;
                     Prop.transform.Rotate(0, 0, rotateZ);
                     _sender.SendSingleData
                     (
@@ -306,7 +327,8 @@ namespace PropHunt.Behaviors
                     );
                     break;
                 case PropState.Scale:
-                    var scaleFactor = Prop.transform.localScale.x + _heroInput.moveVector.Value.y * Time.deltaTime * SCALE_SPEED;
+                    inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0 ? _heroInput.moveVector.Value.y : _heroInput.moveVector.Value.x;
+                    var scaleFactor = Prop.transform.localScale.x + inputValue * Time.deltaTime * SCALE_SPEED;
                     scaleFactor = Mathf.Clamp(scaleFactor, MIN_SCALE, MAX_SCALE);
                     Prop.transform.localScale = Vector3.one * scaleFactor;
                     _sender.SendSingleData
@@ -320,6 +342,10 @@ namespace PropHunt.Behaviors
                     break;
             }
         }
+
+        /// <summary>
+        /// Set the prop's sprite to empty and make the player visible again.
+        /// </summary>
         public void ClearProp()
         {
             _col.size = _origColSize;

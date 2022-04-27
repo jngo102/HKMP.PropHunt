@@ -4,6 +4,9 @@ using UnityEngine;
 
 namespace PropHunt.Input
 {
+    /// <summary>
+    /// A custom input handler for transforming the local player's prop.
+    /// </summary>
     [RequireComponent(typeof(GameManager))]
     internal class PropInputHandler : MonoBehaviour
     {

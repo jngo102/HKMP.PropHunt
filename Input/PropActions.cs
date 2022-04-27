@@ -2,6 +2,9 @@
 
 namespace PropHunt.Input
 {
+    /// <summary>
+    /// A custom player action set for transforming a prop.
+    /// </summary>
     internal class PropActions : PlayerActionSet
     {
         public PlayerAction Select;

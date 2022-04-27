@@ -1,10 +1,11 @@
-using System;
 using Hkmp.Api.Server;
+using Hkmp.Api.Server.Networking;
 using Hkmp.Networking.Packet;
+using PropHunt.Util;
+using System;
+using System.Collections.Generic;
 using System.Linq;
-using Hkmp.Game;
-using PropHunt.Behaviors;
-using Random = UnityEngine.Random;
+using System.Timers;
 
 namespace PropHunt.HKMP
 {
@@ -16,14 +17,42 @@ namespace PropHunt.HKMP
 
         public static PropHuntServerAddon Instance { get; private set; }
 
+        private IServerAddonNetworkSender<FromServerToClientPackets> _sender;
+        private IServerAddonNetworkReceiver<FromClientToServerPackets> _receiver;
+
+        /// <summary>
+        /// The timer that handles the length of time that a round goes for.
+        /// </summary>
+        private EnhancedTimer _roundTimer;
+
+        /// <summary>
+        /// The timer that handles updating every player's timer each second.
+        /// </summary>
+        private EnhancedTimer _intervalTimer;
+
+        /// <summary>
+        /// A collection of all currently alive players on the Props team.
+        /// </summary>
+        private List<IServerPlayer> _livingProps = new();
+
         public override void Initialize(IServerApi serverApi)
         {
             Instance = this;
 
-            var sender = serverApi.NetServer.GetNetworkSender<FromServerToClientPackets>(Instance);
-            var receiver = serverApi.NetServer.GetNetworkReceiver<FromClientToServerPackets>(Instance, InstantiatePacket);
+            _sender = serverApi.NetServer.GetNetworkSender<FromServerToClientPackets>(Instance);
+            _receiver = serverApi.NetServer.GetNetworkReceiver<FromClientToServerPackets>(Instance, InstantiatePacket);
 
-            receiver.RegisterPacketHandler<PropSpriteFromClientToServerData>
+            _roundTimer = new EnhancedTimer();
+            _roundTimer.AutoReset = false;
+
+            _intervalTimer = new EnhancedTimer();
+            _intervalTimer.Interval = 1000;
+            _intervalTimer.AutoReset = true;
+
+            _roundTimer.Elapsed += OnRoundEnd;
+            _intervalTimer.Elapsed += OnUpdateTime;
+
+            _receiver.RegisterPacketHandler<PropSpriteFromClientToServerData>
             (
                 FromClientToServerPackets.BroadcastPropSprite,
                 (id, packetData) =>
@@ -32,7 +61,7 @@ namespace PropHunt.HKMP
                     var otherPlayers = serverApi.ServerManager.Players
                         .Where(remotePlayer => remotePlayer != localPlayer)
                         .Select(remotePlayer => remotePlayer.Id).ToArray();
-                    sender.SendSingleData(FromServerToClientPackets.SendPropSprite, new PropSpriteFromServerToClientData
+                    _sender.SendSingleData(FromServerToClientPackets.SendPropSprite, new PropSpriteFromServerToClientData
                     {
                         PlayerId = id,
                         SpriteName = packetData.SpriteName,
@@ -40,7 +69,7 @@ namespace PropHunt.HKMP
                 }
             );
 
-            receiver.RegisterPacketHandler<PropPositionXYFromClientToServerData>
+            _receiver.RegisterPacketHandler<PropPositionXYFromClientToServerData>
             (
                 FromClientToServerPackets.BroadcastPropPositionXY,
                 (id, packetData) =>
@@ -49,7 +78,7 @@ namespace PropHunt.HKMP
                     var playersInScene = serverApi.ServerManager.Players
                         .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene && remotePlayer != localPlayer)
                         .Select(remotePlayer => remotePlayer.Id).ToArray();
-                    sender.SendSingleData(FromServerToClientPackets.SendPropPositionXY, new PropPositionXYFromServerToClientData
+                    _sender.SendSingleData(FromServerToClientPackets.SendPropPositionXY, new PropPositionXYFromServerToClientData
                     {
                         PlayerId = id,
                         PositionXY = packetData.PositionXY,
@@ -57,7 +86,7 @@ namespace PropHunt.HKMP
                 }
             );
 
-            receiver.RegisterPacketHandler<PropPositionZFromClientToServerData>
+            _receiver.RegisterPacketHandler<PropPositionZFromClientToServerData>
             (
                 FromClientToServerPackets.BroadcastPropPositionZ,
                 (id, packetData) =>
@@ -66,7 +95,7 @@ namespace PropHunt.HKMP
                     var playersInScene = serverApi.ServerManager.Players
                         .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene && remotePlayer != localPlayer)
                         .Select(remotePlayer => remotePlayer.Id).ToArray();
-                    sender.SendSingleData(FromServerToClientPackets.SendPropPositionZ, new PropPositionZFromServerToClientData
+                    _sender.SendSingleData(FromServerToClientPackets.SendPropPositionZ, new PropPositionZFromServerToClientData
                     {
                         PlayerId = id,
                         PositionZ = packetData.PositionZ,
@@ -74,7 +103,7 @@ namespace PropHunt.HKMP
                 }
             );
 
-            receiver.RegisterPacketHandler<PropRotationFromClientToServerData>
+            _receiver.RegisterPacketHandler<PropRotationFromClientToServerData>
             (
                 FromClientToServerPackets.BroadcastPropRotation,
                 (id, packetData) =>
@@ -83,7 +112,7 @@ namespace PropHunt.HKMP
                     var playersInScene = serverApi.ServerManager.Players
                         .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene && remotePlayer != localPlayer)
                         .Select(remotePlayer => remotePlayer.Id).ToArray();
-                    sender.SendSingleData(FromServerToClientPackets.SendPropRotation, new PropRotationFromServerToClientData
+                    _sender.SendSingleData(FromServerToClientPackets.SendPropRotation, new PropRotationFromServerToClientData
                     {
                         PlayerId = id,
                         Rotation = packetData.Rotation,
@@ -91,7 +120,7 @@ namespace PropHunt.HKMP
                 }
             );
 
-            receiver.RegisterPacketHandler<PropScaleFromClientToServerData>
+            _receiver.RegisterPacketHandler<PropScaleFromClientToServerData>
             (
                 FromClientToServerPackets.BroadcastPropScale,
                 (id, packetData) =>
@@ -100,7 +129,7 @@ namespace PropHunt.HKMP
                     var playersInScene = serverApi.ServerManager.Players
                         .Where(remotePlayer => remotePlayer.CurrentScene == localPlayer.CurrentScene && remotePlayer != localPlayer)
                         .Select(remotePlayer => remotePlayer.Id).ToArray();
-                    sender.SendSingleData(FromServerToClientPackets.SendPropScale, new PropScaleFromServerToClientData
+                    _sender.SendSingleData(FromServerToClientPackets.SendPropScale, new PropScaleFromServerToClientData
                     {
                         PlayerId = id,
                         ScaleFactor = packetData.ScaleFactor,
@@ -108,36 +137,122 @@ namespace PropHunt.HKMP
                 }
             );
 
-            receiver.RegisterPacketHandler<SetPlayingPropHuntFromClientToServerData>
+            _receiver.RegisterPacketHandler<SetPlayingPropHuntFromClientToServerData>
             (
                 FromClientToServerPackets.SetPlayingPropHunt,
                 (id, packetData) =>
                 {
-                    var players = serverApi.ServerManager.Players.ToList();
-                    players = players.OrderBy(_ => Guid.NewGuid()).ToList();
-                    int halfCount = players.Count / 2;
-                    var hunters = players.GetRange(0, halfCount);
-                    var props = players.GetRange(halfCount, players.Count - halfCount);
-
-                    sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromServerToClientData
+                    bool playing = packetData.Playing;
+                    if (playing)
                     {
-                        PropHuntTeam = (byte)PropHuntTeam.Hunters,
-                        PlayerId = id,
-                        Playing = packetData.Playing,
-                        GracePeriod = packetData.GracePeriod,
-                    }, hunters.Select(hunter => hunter.Id).ToArray());
+                        var players = serverApi.ServerManager.Players.ToList();
+                        players = players.OrderBy(_ => Guid.NewGuid()).ToList();
+                        int halfCount = players.Count / 2;
+                        var hunters = players.GetRange(0, halfCount);
+                        var props = players.GetRange(halfCount, players.Count - halfCount);
+                        _livingProps.Clear();
+                        _livingProps.AddRange(props);
+                        PropHunt.Instance.Log("Prop count: " + _livingProps.Count());
 
-                    sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromServerToClientData
+                        _sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt,
+                            new SetPlayingPropHuntFromServerToClientData
+                            {
+                                PropHuntTeam = (byte)PropHuntTeam.Hunters,
+                                PlayerId = id,
+                                Playing = true,
+                                GracePeriod = packetData.GracePeriod,
+                                RoundTime = packetData.RoundTime,
+                            }, hunters.Select(hunter => hunter.Id).ToArray());
+
+                        _sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt,
+                            new SetPlayingPropHuntFromServerToClientData
+                            {
+                                PropHuntTeam = (byte)PropHuntTeam.Props,
+                                PlayerId = id,
+                                Playing = true,
+                                GracePeriod = packetData.GracePeriod,
+                                RoundTime = packetData.RoundTime,
+                            }, props.Select(prop => prop.Id).ToArray());
+
+                        _roundTimer.Interval = packetData.RoundTime * 1000;
+                        _roundTimer.Start();
+
+                        _intervalTimer.Start();
+                    }
+                    else
                     {
-                        PropHuntTeam = (byte)PropHuntTeam.Props,
-                        PlayerId = id,
-                        Playing = packetData.Playing,
-                        GracePeriod = packetData.GracePeriod,
-                    }, props.Select(prop => prop.Id).ToArray());
+                        _roundTimer.Stop();
+                        _intervalTimer.Stop();
+
+                        _sender.BroadcastSingleData(FromServerToClientPackets.SetPlayingPropHunt,
+                            new SetPlayingPropHuntFromServerToClientData
+                            {
+                                PlayerId = id,
+                                Playing = false,
+                            }
+                        );
+                    }
+                }
+            );
+
+            _receiver.RegisterPacketHandler<PlayerDeathFromClientToServerData>
+            (
+                FromClientToServerPackets.PlayerDeath,
+                (id, packetData) =>
+                {
+
+                    var deadProp = _livingProps.FirstOrDefault(prop => prop.Id == id);
+                    if (deadProp != null) _livingProps.Remove(deadProp);
+
+                    PropHunt.Instance.Log("Props remaining: " + _livingProps.Count);
+
+                    if (_livingProps.Count <= 0)
+                    {
+                        EndRound();
+                        return;
+                    }
+
+                    _sender.BroadcastSingleData(FromServerToClientPackets.PlayerDeath,
+                        new PlayerDeathFromServerToClientData
+                        {
+                            PlayerId = id,
+                        }
+                    );
                 }
             );
         }
-        
+
+        /// <summary>
+        /// End the currently active round; only called after all props are killed, so broadcast that hunters have won.
+        /// </summary>
+        private void EndRound()
+        {
+            _roundTimer.Stop();
+            _intervalTimer.Stop();
+            _sender.BroadcastSingleData(FromServerToClientPackets.EndRound, new EndRoundFromServerToClientData
+            {
+                HuntersWin = true,
+            });
+        }
+
+        private void OnRoundEnd(object sender, ElapsedEventArgs elapsedEventArgs)
+        {
+            _intervalTimer.Stop();
+
+            _sender.BroadcastSingleData(FromServerToClientPackets.EndRound, new EndRoundFromServerToClientData
+            {
+                HuntersWin = _livingProps.Count <= 0,
+            });
+        }
+
+        private void OnUpdateTime(object sender, ElapsedEventArgs elapsedEventArgs)
+        {
+            _sender.BroadcastSingleData(FromServerToClientPackets.UpdateRoundTimer, new UpdateRoundTimerFromServerToClientData
+            {
+                TimeRemaining = (int)_roundTimer.TimeLeft / 1000, 
+            });
+        }
+
         private static IPacketData InstantiatePacket(FromClientToServerPackets serverPacket)
         {
             switch (serverPacket)
@@ -154,6 +269,8 @@ namespace PropHunt.HKMP
                     return new PropScaleFromClientToServerData();
                 case FromClientToServerPackets.SetPlayingPropHunt:
                     return new SetPlayingPropHuntFromClientToServerData();
+                case FromClientToServerPackets.PlayerDeath:
+                    return new PlayerDeathFromClientToServerData();
                 default:
                     return null;
             }

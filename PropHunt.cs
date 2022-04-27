@@ -5,18 +5,18 @@ using PropHunt.HKMP;
 using PropHunt.Input;
 using Satchel.BetterMenus;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
+using PropHunt.UI;
 using UnityEngine;
 
-namespace PropHunt
+namespace PropHunt  
 {
     internal class PropHunt : Mod, IGlobalSettings<GlobalSettings>, ICustomMenuMod
     {
         internal static PropHunt Instance { get; private set; }
 
-        private PropHuntClientAddon _clientAddon = new();
-        private PropHuntServerAddon _serverAddon = new();
+        private readonly PropHuntClientAddon _clientAddon = new();
+        private readonly PropHuntServerAddon _serverAddon = new();
 
         private Menu _menu;
 
@@ -36,6 +36,7 @@ namespace PropHunt
             ServerAddon.RegisterAddon(_serverAddon);
             
             GameManager.instance.gameObject.AddComponent<PropInputHandler>();
+            GameCameras.instance.hudCanvas.AddComponent<RoundTimer>();
 
             ModHooks.LanguageGetHook += OnLanguageGet;
         }
@@ -51,6 +52,8 @@ namespace PropHunt
                 {
                     case "HUNTER_MESSAGE": return "You are now a hunter!";
                     case "PROP_MESSAGE": return "You are now a prop!";
+                    case "HUNTERS_WIN": return "Hunters win!";
+                    case "PROPS_WIN": return "Props win!";
                 }
             }
 
@@ -59,11 +62,6 @@ namespace PropHunt
 
         public MenuScreen GetMenuScreen(MenuScreen modListMenu, ModToggleDelegates? toggleDelegates)
         {
-            var keybind = new KeyBind(
-                "Select Prop",
-                PropInputHandler.Instance.InputActions.Select
-            );
-
             _menu ??= new Menu("Prop Hunt", new Element[] {
                 new KeyBind(
                     "Select Prop",
@@ -82,7 +80,7 @@ namespace PropHunt
                     PropInputHandler.Instance.InputActions.Rotate
                 ),
                 new KeyBind(
-                    "Shrink/Grow Prop",
+                    "Grow/Shrink Prop",
                     PropInputHandler.Instance.InputActions.Scale
                 ),
             });

@@ -25,6 +25,11 @@ namespace PropHunt.HKMP
             var sender = propHuntInstance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(propHuntInstance);
 
             float gracePeriodArg = 15;
+            float roundTime = 120;
+            if (arguments.Length > 3)
+            {
+                roundTime = float.Parse(arguments[3]);
+            }
             if (arguments.Length > 2)
             {
                 gracePeriodArg = float.Parse(arguments[2]);
@@ -36,6 +41,7 @@ namespace PropHunt.HKMP
                 {
                     Playing = true,
                     GracePeriod = gracePeriodArg,
+                    RoundTime = roundTime,
                 });
             }
             else if (_deactivateCommands.Contains(arguments[1].ToLower()))
@@ -43,7 +49,6 @@ namespace PropHunt.HKMP
                 sender.SendSingleData(FromClientToServerPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromClientToServerData()
                 {
                     Playing = false,
-                    GracePeriod = gracePeriodArg,
                 });
             }
         }

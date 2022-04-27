@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace PropHunt
+﻿namespace PropHunt
 {
+    /// <summary>
+    /// The current state of the local player's prop.
+    /// </summary>
     internal enum PropState
     {
         Free,
@@ -15,6 +12,9 @@ namespace PropHunt
         Scale,
     }
 
+    /// <summary>
+    /// The team that each player will be assigned.
+    /// </summary>
     internal enum PropHuntTeam
     {
         Hunters,

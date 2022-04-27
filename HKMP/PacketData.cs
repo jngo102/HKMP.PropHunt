@@ -118,6 +118,7 @@ namespace PropHunt.HKMP
         public bool Playing { get; set; }
         public byte PropHuntTeam { get; set; }
         public float GracePeriod { get; set; }
+        public float RoundTime { get; set; }
 
         public void ReadData(IPacket packet)
         {
@@ -127,6 +128,7 @@ namespace PropHunt.HKMP
             {
                 PropHuntTeam = packet.ReadByte();
                 GracePeriod = packet.ReadFloat();
+                RoundTime = packet.ReadFloat();
             }
         }
 
@@ -138,7 +140,68 @@ namespace PropHunt.HKMP
             {
                 packet.Write(PropHuntTeam);
                 packet.Write(GracePeriod);
+                packet.Write(RoundTime);
             }
+        }
+    }
+
+    internal class UpdateRoundTimerFromServerToClientData : IPacketData
+    {
+        public bool IsReliable => false;
+        public bool DropReliableDataIfNewerExists => false;
+
+        public ushort PlayerId { get; set; }
+        public int TimeRemaining { get; set; }
+
+        public void ReadData(IPacket packet)
+        {
+            PlayerId = packet.ReadUShort();
+            TimeRemaining = packet.ReadInt();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(PlayerId);
+            packet.Write(TimeRemaining);
+        }
+    }
+
+    internal class EndRoundFromServerToClientData : IPacketData
+    {
+        public bool IsReliable => true;
+        public bool DropReliableDataIfNewerExists => true;
+
+        public ushort PlayerId { get; set; }
+        public bool HuntersWin { get; set; }
+
+        public void ReadData(IPacket packet)
+        {
+            PlayerId = packet.ReadUShort();
+            HuntersWin = packet.ReadBool();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(PlayerId);
+            packet.Write(HuntersWin);
+        }
+    }
+
+    internal class PlayerDeathFromServerToClientData : IPacketData
+    {
+        public bool IsReliable => true;
+        public bool DropReliableDataIfNewerExists => true;
+
+        public ushort PlayerId { get; set; }
+
+        public void ReadData(IPacket packet)
+        {
+            PlayerId = packet.ReadUShort();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(PlayerId);
         }
     }
 
@@ -150,6 +213,9 @@ namespace PropHunt.HKMP
         SendPropRotation,
         SendPropScale,
         SetPlayingPropHunt,
+        UpdateRoundTimer,
+        EndRound,
+        PlayerDeath,
     }
 
     #endregion
@@ -252,6 +318,7 @@ namespace PropHunt.HKMP
 
         public bool Playing { get; set; }
         public float GracePeriod { get; set; }
+        public float RoundTime { get; set; }
 
         public void ReadData(IPacket packet)
         {
@@ -259,6 +326,7 @@ namespace PropHunt.HKMP
             if (Playing)
             {
                 GracePeriod = packet.ReadFloat();
+                RoundTime = packet.ReadFloat();
             }
         }
 
@@ -268,7 +336,24 @@ namespace PropHunt.HKMP
             if (Playing)
             {
                 packet.Write(GracePeriod);
+                packet.Write(RoundTime);
             }
+        }
+    }
+
+    internal class PlayerDeathFromClientToServerData : IPacketData
+    {
+        public bool IsReliable => true;
+        public bool DropReliableDataIfNewerExists => true;
+
+        public void ReadData(IPacket packet)
+        {
+
+        }
+
+        public void WriteData(IPacket packet)
+        {
+
         }
     }
 
@@ -280,6 +365,7 @@ namespace PropHunt.HKMP
         BroadcastPropRotation,
         BroadcastPropScale,
         SetPlayingPropHunt,
+        PlayerDeath,
     }
 
     #endregion

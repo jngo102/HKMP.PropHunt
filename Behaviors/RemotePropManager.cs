@@ -22,6 +22,10 @@ namespace PropHunt.Behaviors
             _propSprite = _prop.AddComponent<SpriteRenderer>();
         }
 
+        /// <summary>
+        /// Set the remote player's prop sprite.
+        /// </summary>
+        /// <param name="sprite">The sprite to change to.</param>
         public void SetPropSprite(Sprite sprite)
         {
             _propSprite.sprite = sprite;
