@@ -5,6 +5,18 @@ namespace PropHunt.Behaviors
 {
     internal class Hunter : MonoBehaviour
     {
+        private void OnDisable()
+        {
+            On.HeroController.CanFocus -= RemoveFocus;
+        }
+
+        private void OnEnable()
+        {
+            On.HeroController.CanFocus += RemoveFocus;
+        }
+
+        private bool RemoveFocus(On.HeroController.orig_CanFocus orig, HeroController self) => false;
+
         /// <summary>
         /// Deactivate controls, then wait for a certain amount of time before reactivating them.
         /// </summary>

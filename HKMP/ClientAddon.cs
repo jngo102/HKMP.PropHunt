@@ -130,6 +130,9 @@ namespace PropHunt.HKMP
                             dreamFSM.Fsm.GetFsmString("Convo Title").Value = "HUNTER_MESSAGE";
                             dreamFSM.SendEvent("DISPLAY DREAM MSG");
 
+                            HeroController.instance.SetMPCharge(198);
+                            GameManager.instance.soulOrb_fsm.SendEvent("MP GAIN");
+
                             On.Breakable.Break += OnBreakableBreak;
                         }
                         else if (packetData.PropHuntTeam == (byte)PropHuntTeam.Props)
