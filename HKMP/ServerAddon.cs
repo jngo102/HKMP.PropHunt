@@ -1,10 +1,10 @@
 using Hkmp.Api.Server;
 using Hkmp.Api.Server.Networking;
 using Hkmp.Networking.Packet;
-using PropHunt.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Timers;
 
 namespace PropHunt.HKMP
@@ -12,7 +12,7 @@ namespace PropHunt.HKMP
     internal class PropHuntServerAddon : ServerAddon
     {
         protected override string Name => "Prop Hunt";
-        protected override string Version => PropHunt.Instance.GetVersion();
+        protected override string Version => Assembly.GetExecutingAssembly().GetName().Version.ToString();
         public override bool NeedsNetwork => true;
 
         public static PropHuntServerAddon Instance { get; private set; }
@@ -23,12 +23,15 @@ namespace PropHunt.HKMP
         /// <summary>
         /// The timer that handles the length of time that a round goes for.
         /// </summary>
-        private EnhancedTimer _roundTimer;
+        private Timer _roundTimer;
 
         /// <summary>
         /// The timer that handles updating every player's timer each second.
         /// </summary>
-        private EnhancedTimer _intervalTimer;
+        private Timer _intervalTimer;
+
+        private DateTime _dueTimeRound;
+        private DateTime _dueTimeInterval;
 
         /// <summary>
         /// A collection of all currently alive players on the Props team.
@@ -42,10 +45,10 @@ namespace PropHunt.HKMP
             _sender = serverApi.NetServer.GetNetworkSender<FromServerToClientPackets>(Instance);
             _receiver = serverApi.NetServer.GetNetworkReceiver<FromClientToServerPackets>(Instance, InstantiatePacket);
 
-            _roundTimer = new EnhancedTimer();
+            _roundTimer = new Timer();
             _roundTimer.AutoReset = false;
 
-            _intervalTimer = new EnhancedTimer();
+            _intervalTimer = new Timer();
             _intervalTimer.Interval = 1000;
             _intervalTimer.AutoReset = true;
 
@@ -152,7 +155,6 @@ namespace PropHunt.HKMP
                         var props = players.GetRange(halfCount, players.Count - halfCount);
                         _livingProps.Clear();
                         _livingProps.AddRange(props);
-                        PropHunt.Instance.Log("Prop count: " + _livingProps.Count());
 
                         _sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt,
                             new SetPlayingPropHuntFromServerToClientData
@@ -176,8 +178,10 @@ namespace PropHunt.HKMP
 
                         _roundTimer.Interval = packetData.RoundTime * 1000;
                         _roundTimer.Start();
+                        _dueTimeRound = DateTime.Now.AddMilliseconds(_roundTimer.Interval);
 
                         _intervalTimer.Start();
+                        _dueTimeInterval = DateTime.Now.AddMilliseconds(_intervalTimer.Interval);
                     }
                     else
                     {
@@ -203,8 +207,6 @@ namespace PropHunt.HKMP
 
                     var deadProp = _livingProps.FirstOrDefault(prop => prop.Id == id);
                     if (deadProp != null) _livingProps.Remove(deadProp);
-
-                    PropHunt.Instance.Log("Props remaining: " + _livingProps.Count);
 
                     if (_livingProps.Count <= 0)
                     {
@@ -249,8 +251,10 @@ namespace PropHunt.HKMP
         {
             _sender.BroadcastSingleData(FromServerToClientPackets.UpdateRoundTimer, new UpdateRoundTimerFromServerToClientData
             {
-                TimeRemaining = (int)_roundTimer.TimeLeft / 1000, 
+                TimeRemaining = (int)(_dueTimeRound - DateTime.Now).TotalSeconds, 
             });
+
+            _dueTimeInterval = DateTime.Now.AddMilliseconds(_intervalTimer.Interval);
         }
 
         private static IPacketData InstantiatePacket(FromClientToServerPackets serverPacket)
