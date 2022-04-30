@@ -4,6 +4,7 @@ using PropHunt.HKMP;
 using PropHunt.Input;
 using PropHunt.Util;
 using System.Collections.Generic;
+using Hkmp.Networking.Packet.Data;
 using Modding;
 using UnityEngine;
 using HKMPVector2 = Hkmp.Math.Vector2;
@@ -34,8 +35,9 @@ namespace PropHunt.Behaviors
         private const float SMALLEST_SPRITE_AREA = 0;
 
         private Vector2 _origColSize;
-        private int _origMaxHealth;
         private int _origHealth;
+        private int _origMaxHealth;
+        private int _origMaxHealthBase;
 
         private readonly List<PlayMakerFSM> _healthDisplays = new();
 
@@ -70,6 +72,7 @@ namespace PropHunt.Behaviors
             _origColSize = _col.size;
             _origHealth = _pd.health;
             _origMaxHealth = _pd.maxHealth;
+            _origMaxHealthBase = _pd.maxHealthBase;
         }
 
         private IEnumerator Start()
@@ -106,7 +109,7 @@ namespace PropHunt.Behaviors
         private void OnPlayerDeath()
         {
             PropHunt.Instance.Log("You have died.");
-            _sender.SendSingleData(FromClientToServerPackets.PlayerDeath, new PlayerDeathFromClientToServerData());
+            _sender.SendSingleData(FromClientToServerPackets.PlayerDeath, new ReliableEmptyData());
         }
 
         /// <summary>
@@ -250,6 +253,7 @@ namespace PropHunt.Behaviors
                     PROP_HEALTH_MAX);
                 maxHealth = Mathf.Clamp(maxHealth, PROP_HEALTH_MIN, PROP_HEALTH_MAX);
                 _pd.maxHealth = (int)maxHealth;
+                _pd.maxHealthBase = (int)maxHealth;
                 _pd.health = Mathf.FloorToInt(healthRatio * _pd.maxHealth);
                 _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
 
@@ -352,6 +356,7 @@ namespace PropHunt.Behaviors
 
             _pd.health = _origHealth;
             _pd.maxHealth = _origMaxHealth;
+            _pd.maxHealthBase = _origMaxHealthBase;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
 
             _propState = PropState.Free;

@@ -340,23 +340,7 @@ namespace PropHunt.HKMP
             }
         }
     }
-
-    internal class PlayerDeathFromClientToServerData : IPacketData
-    {
-        public bool IsReliable => true;
-        public bool DropReliableDataIfNewerExists => true;
-
-        public void ReadData(IPacket packet)
-        {
-
-        }
-
-        public void WriteData(IPacket packet)
-        {
-
-        }
-    }
-
+    
     public enum FromClientToServerPackets
     {
         BroadcastPropSprite,

@@ -66,7 +66,7 @@
 		<MakeDir Directories="$(ModsPath2)/$(TargetName)" />
 		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath2)/$(TargetName)" />
 		<!-- Uncomment this if you have the game installed on Steam, Steam is in your PATH environment variable, and you want to run the game upon build. -->
-		<!-- Exec Command="steam steam://rungameid/367520" / -->
+		<Exec Command="steam steam://rungameid/367520" />
 	</Target>
 	<ItemGroup>
 		<Reference Include="Assembly-CSharp">

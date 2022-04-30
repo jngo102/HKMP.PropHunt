@@ -1,7 +1,6 @@
 using GlobalEnums;
 using Hkmp.Api.Client;
 using Hkmp.Game;
-using Hkmp.Networking.Packet;
 using PropHunt.Behaviors;
 using PropHunt.UI;
 using System.Collections;
@@ -21,7 +20,7 @@ namespace PropHunt.HKMP
         /// <summary>
         /// A collection of player IDs and the sprites associated with them.
         /// </summary>
-        private Dictionary<ushort, Sprite> _cachedPropSprites = new();
+        private static Dictionary<ushort, Sprite> _cachedPropSprites;
         
         /// <summary>
         /// A dummy object used to damage the player when they are a Hunter and break a Breakable.
@@ -35,22 +34,48 @@ namespace PropHunt.HKMP
         {
             Instance = this;
             PropHuntClientAddonApi = clientApi;
+
+            _cachedPropSprites = new Dictionary<ushort, Sprite>();
             
-            var receiver = clientApi.NetClient.GetNetworkReceiver<FromServerToClientPackets>(Instance, InstantiatePacket);
+            var receiver = clientApi.NetClient.GetNetworkReceiver<FromServerToClientPackets>(Instance, clientPacket =>
+            {
+                return clientPacket switch
+                {
+                    FromServerToClientPackets.SendPropSprite => new PropSpriteFromServerToClientData(),
+                    FromServerToClientPackets.SendPropPositionXY => new PropPositionXYFromServerToClientData(),
+                    FromServerToClientPackets.SendPropPositionZ => new PropPositionZFromServerToClientData(),
+                    FromServerToClientPackets.SendPropRotation => new PropRotationFromServerToClientData(),
+                    FromServerToClientPackets.SendPropScale => new PropScaleFromServerToClientData(),
+                    FromServerToClientPackets.SetPlayingPropHunt => new SetPlayingPropHuntFromServerToClientData(),
+                    FromServerToClientPackets.PlayerDeath => new PlayerDeathFromServerToClientData(),
+                    FromServerToClientPackets.UpdateRoundTimer => new UpdateRoundTimerFromServerToClientData(),
+                    FromServerToClientPackets.EndRound => new EndRoundFromServerToClientData(),
+                    _ => null
+                };
+            });
 
             receiver.RegisterPacketHandler<PropSpriteFromServerToClientData>
             (
                 FromServerToClientPackets.SendPropSprite,
-                packetData => 
+                packetData =>
                 { 
                     var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
                     var propSprite = string.IsNullOrEmpty(packetData.SpriteName)
                         ? null
                         : Resources.FindObjectsOfTypeAll<Sprite>()
-                            .First(sprite => sprite.name == packetData.SpriteName);
+                            .FirstOrDefault(sprite => sprite.name == packetData.SpriteName);
                     PropHunt.Instance.Log("Caching sprite of player: " + packetData.PlayerId);
-                    _cachedPropSprites[packetData.PlayerId] = propSprite;
+                    if (propSprite != null)
+                    {
+                        _cachedPropSprites[packetData.PlayerId] = propSprite;
+                    }
+                    else if (_cachedPropSprites.ContainsKey(packetData.PlayerId))
+                    {
+                        _cachedPropSprites.Remove(packetData.PlayerId);
+                    }
+
                     var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
+                    propManager ??= player.PlayerObject.AddComponent<RemotePropManager>();
                     propManager.SetPropSprite(propSprite);
                 }
             );
@@ -146,6 +171,8 @@ namespace PropHunt.HKMP
                             
                             dreamFSM.Fsm.GetFsmString("Convo Title").Value = "PROP_MESSAGE";
                             dreamFSM.SendEvent("DISPLAY DREAM MSG");
+
+                            On.Breakable.Break -= OnBreakableBreak;
                         }
                     }
                     else
@@ -241,166 +268,130 @@ namespace PropHunt.HKMP
             Object.DontDestroyOnLoad(_damager);
             _damager.SetActive(false);
 
-            clientApi.ClientManager.ConnectEvent          += OnConnect;
-            clientApi.ClientManager.PlayerConnectEvent    += OnPlayerConnect;
-            clientApi.ClientManager.PlayerEnterSceneEvent += OnPlayerEnterScene;
-        }
-
-        private void OnConnect()
-        {
-            InitComponents();
-        }
-
-        private void OnPlayerConnect(IClientPlayer player)
-        {
-            var propManager = HeroController.instance.GetComponent<LocalPropManager>();
-            propManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
-
-            if (!propManager.enabled) return;
-
-            var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
-
-            string propName = propManager.PropSprite?.name;
-
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropSprite,
-                new PropSpriteFromClientToServerData
-                {
-                    SpriteName = propName,
-                }
-            );
-
-            var propTransform = propManager.Prop.transform;
-
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropPositionXY,
-                new PropPositionXYFromClientToServerData
-                {
-                    PositionXY = new HKMPVector2(
-                        propTransform.localPosition.x,
-                        propTransform.localPosition.y),
-                }
-            );
-
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropPositionZ,
-                new PropPositionZFromClientToServerData
-                {
-                    PositionZ = propTransform.localPosition.z,
-                }
-            );
-
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropRotation,
-                new PropRotationFromClientToServerData
-                {
-                    Rotation = propTransform.rotation.eulerAngles.z,
-                }
-            );
-
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropScale,
-                new PropScaleFromClientToServerData
-                {
-                    ScaleFactor = propTransform.localScale.x,
-                }
-            );
-
-            sender.SendSingleData(
-                FromClientToServerPackets.SetPlayingPropHunt,
-                new SetPlayingPropHuntFromClientToServerData
-                {
-                    Playing = propManager.enabled,
-                }
-            );
-        }
-
-        private void OnPlayerEnterScene(IClientPlayer player)
-        {
-            var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
-            propManager ??= player.PlayerObject.AddComponent<RemotePropManager>();
-            
-            if (!propManager.enabled) return;
-            
-            if (_cachedPropSprites.ContainsKey(player.Id))
+            clientApi.ClientManager.ConnectEvent += () => InitComponents(); ;
+            clientApi.ClientManager.PlayerConnectEvent += (player) =>
             {
-                propManager.SetPropSprite(_cachedPropSprites[player.Id]);
-            }
-            
-            var heroPropManager = HeroController.instance.GetComponent<LocalPropManager>();
-            heroPropManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
-            
-            if (heroPropManager.PropSprite == null) return;
+                var localPropManager = HeroController.instance.GetComponent<LocalPropManager>();
+                localPropManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
 
-            var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropSprite,
-                new PropSpriteFromClientToServerData
-                {
-                    SpriteName = heroPropManager.PropSprite.name,
-                }
-            );
-            
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropPositionXY,
-                new PropPositionXYFromClientToServerData
-                {
-                    PositionXY = new HKMPVector2(
-                        heroPropManager.Prop.transform.localPosition.x, 
-                        heroPropManager.Prop.transform.localPosition.y),
-                }
-            );
+                if (!localPropManager.enabled) return;
 
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropPositionZ,
-                new PropPositionZFromClientToServerData
-                {
-                    PositionZ = heroPropManager.Prop.transform.localPosition.z,
-                }
-            );
+                var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
 
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropRotation,
-                new PropRotationFromClientToServerData
-                {
-                    Rotation = heroPropManager.Prop.transform.rotation.eulerAngles.z,
-                }
-            );
+                string propName = localPropManager.PropSprite?.name;
 
-            sender.SendSingleData(
-                FromClientToServerPackets.BroadcastPropScale,
-                new PropScaleFromClientToServerData
-                {
-                    ScaleFactor = heroPropManager.Prop.transform.localScale.x,
-                }
-            );
-        }
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropSprite,
+                    new PropSpriteFromClientToServerData
+                    {
+                        SpriteName = propName,
+                    }
+                );
 
-        private static IPacketData InstantiatePacket(FromServerToClientPackets clientPacket)
-        {
-            switch (clientPacket)
+                var propTransform = localPropManager.Prop.transform;
+
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropPositionXY,
+                    new PropPositionXYFromClientToServerData
+                    {
+                        PositionXY = new HKMPVector2(
+                            propTransform.localPosition.x,
+                            propTransform.localPosition.y),
+                    }
+                );
+
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropPositionZ,
+                    new PropPositionZFromClientToServerData
+                    {
+                        PositionZ = propTransform.localPosition.z,
+                    }
+                );
+
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropRotation,
+                    new PropRotationFromClientToServerData
+                    {
+                        Rotation = propTransform.rotation.eulerAngles.z,
+                    }
+                );
+
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropScale,
+                    new PropScaleFromClientToServerData
+                    {
+                        ScaleFactor = propTransform.localScale.x,
+                    }
+                );
+
+                sender.SendSingleData(
+                    FromClientToServerPackets.SetPlayingPropHunt,
+                    new SetPlayingPropHuntFromClientToServerData
+                    {
+                        Playing = localPropManager.enabled,
+                    }
+                );
+            };
+            clientApi.ClientManager.PlayerEnterSceneEvent += (player) =>
             {
-                case FromServerToClientPackets.SendPropSprite:
-                    return new PropSpriteFromServerToClientData();
-                case FromServerToClientPackets.SendPropPositionXY:
-                    return new PropPositionXYFromServerToClientData();
-                case FromServerToClientPackets.SendPropPositionZ:
-                    return new PropPositionZFromServerToClientData();
-                case FromServerToClientPackets.SendPropRotation:
-                    return new PropRotationFromServerToClientData();
-                case FromServerToClientPackets.SendPropScale:
-                    return new PropScaleFromServerToClientData();
-                case FromServerToClientPackets.SetPlayingPropHunt:
-                    return new SetPlayingPropHuntFromServerToClientData();
-                case FromServerToClientPackets.PlayerDeath:
-                    return new PlayerDeathFromServerToClientData();
-                case FromServerToClientPackets.UpdateRoundTimer:
-                    return new UpdateRoundTimerFromServerToClientData();
-                case FromServerToClientPackets.EndRound:
-                    return new EndRoundFromServerToClientData();
-                default:
-                    return null;
-            }
+                var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
+                propManager ??= player.PlayerObject.AddComponent<RemotePropManager>();
+
+                if (!propManager.enabled) return;
+
+                if (_cachedPropSprites.ContainsKey(player.Id))
+                {
+                    propManager.SetPropSprite(_cachedPropSprites[player.Id]);
+                }
+
+                var heroPropManager = HeroController.instance.GetComponent<LocalPropManager>();
+                heroPropManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
+
+                if (heroPropManager.PropSprite == null) return;
+
+                var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropSprite,
+                    new PropSpriteFromClientToServerData
+                    {
+                        SpriteName = heroPropManager.PropSprite.name,
+                    }
+                );
+
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropPositionXY,
+                    new PropPositionXYFromClientToServerData
+                    {
+                        PositionXY = new HKMPVector2(
+                            heroPropManager.Prop.transform.localPosition.x,
+                            heroPropManager.Prop.transform.localPosition.y),
+                    }
+                );
+
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropPositionZ,
+                    new PropPositionZFromClientToServerData
+                    {
+                        PositionZ = heroPropManager.Prop.transform.localPosition.z,
+                    }
+                );
+
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropRotation,
+                    new PropRotationFromClientToServerData
+                    {
+                        Rotation = heroPropManager.Prop.transform.rotation.eulerAngles.z,
+                    }
+                );
+
+                sender.SendSingleData(
+                    FromClientToServerPackets.BroadcastPropScale,
+                    new PropScaleFromClientToServerData
+                    {
+                        ScaleFactor = heroPropManager.Prop.transform.localScale.x,
+                    }
+                );
+            };
         }
 
         private void OnBreakableBreak(On.Breakable.orig_Break orig, Breakable self, float flingAngleMin, float flingAngleMax, float impactMultiplier)

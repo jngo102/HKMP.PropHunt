@@ -3,20 +3,20 @@ using Hkmp.Api.Server;
 using Modding;
 using PropHunt.HKMP;
 using PropHunt.Input;
+using PropHunt.UI;
 using Satchel.BetterMenus;
 using System.Collections.Generic;
 using System.Reflection;
-using PropHunt.UI;
 using UnityEngine;
 
-namespace PropHunt  
+namespace PropHunt
 {
     internal class PropHunt : Mod, IGlobalSettings<GlobalSettings>, ICustomMenuMod
     {
         internal static PropHunt Instance { get; private set; }
 
-        private readonly PropHuntClientAddon _clientAddon = new();
-        private readonly PropHuntServerAddon _serverAddon = new();
+        private PropHuntClientAddon _clientAddon;
+        private PropHuntServerAddon _serverAddon;
 
         private Menu _menu;
 
@@ -31,6 +31,9 @@ namespace PropHunt
         public override void Initialize(Dictionary<string, Dictionary<string, GameObject>> preloadedObjects)
         {
             Instance ??= this;
+
+            _clientAddon = new PropHuntClientAddon();
+            _serverAddon = new PropHuntServerAddon();
 
             ClientAddon.RegisterAddon(_clientAddon);
             ServerAddon.RegisterAddon(_serverAddon);
