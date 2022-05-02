@@ -145,7 +145,7 @@ namespace PropHunt.HKMP
                         if (packetData.PropHuntTeam == (byte)PropHuntTeam.Hunters)
                         {
                             clientApi.ClientManager.ChangeTeam(Team.Grimm);
-                            
+
                             hunter.enabled = true;
                             hunter.BeginGracePeriod(packetData.GracePeriod);
                             propManager.enabled = false;
@@ -240,6 +240,8 @@ namespace PropHunt.HKMP
                     var dreamMsg = GameCameras.instance.hudCamera.transform.Find("DialogueManager/Dream Msg");
                     var dreamFSM = dreamMsg.gameObject.LocateMyFSM("Display");
                     dreamFSM.Fsm.GetFsmString("Sheet").Value = "PROP_HUNT";
+
+                    On.Breakable.Break -= OnBreakableBreak;
 
                     bool huntersWin = packetData.HuntersWin;
                     if (huntersWin)

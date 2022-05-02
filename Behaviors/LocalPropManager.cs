@@ -33,15 +33,13 @@ namespace PropHunt.Behaviors
 
         private const float LARGEST_SPRITE_AREA = 25;
         private const float SMALLEST_SPRITE_AREA = 0;
-
-        private Vector2 _origColSize;
+        
         private int _origHealth;
         private int _origMaxHealth;
         private int _origMaxHealthBase;
 
         private readonly List<PlayMakerFSM> _healthDisplays = new();
-
-        private BoxCollider2D _col;
+        
         private HeroController _hc;
         private HeroActions _heroInput;
         private PropActions _propInput;
@@ -51,12 +49,12 @@ namespace PropHunt.Behaviors
         public GameObject Prop { get; private set; }
         private IClientAddonNetworkSender<FromClientToServerPackets> _sender;
         private SpriteRenderer _propSprite;
+        private BoxCollider2D _propCol;
         public Sprite PropSprite => _propSprite.sprite;
         private PropState _propState = PropState.Free;
 
         private void Awake()
         {
-            _col = GetComponent<BoxCollider2D>();
             _hc = GetComponent<HeroController>();
             _heroInput = GameManager.instance.inputHandler.inputActions;
             _propInput = PropInputHandler.Instance.InputActions;
@@ -64,12 +62,14 @@ namespace PropHunt.Behaviors
             _pd = PlayerData.instance;
             _username = transform.Find("Username").gameObject;  
             Prop = new GameObject("Prop");
+
+            Prop.layer = (int)GlobalEnums.PhysLayers.PLAYER;
             Prop.transform.SetParent(transform);
             Prop.transform.localPosition = Vector3.zero;
+            _propCol = Prop.AddComponent<BoxCollider2D>();
             _propSprite = Prop.AddComponent<SpriteRenderer>();
             _sender = PropHuntClientAddon.Instance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(PropHuntClientAddon.Instance);
-
-            _origColSize = _col.size;
+            
             _origHealth = _pd.health;
             _origMaxHealth = _pd.maxHealth;
             _origMaxHealthBase = _pd.maxHealthBase;
@@ -95,6 +95,11 @@ namespace PropHunt.Behaviors
 
         private void OnEnable()
         {
+            _pd.health = 1;
+            _pd.maxHealth = 1;
+            _pd.maxHealthBase = 1;
+            _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
+
             EnableInput(false);
             ModHooks.BeforePlayerDeadHook += OnPlayerDeath;
         }
@@ -103,6 +108,12 @@ namespace PropHunt.Behaviors
         {
             ClearProp();
             EnableInput(true);
+
+            _pd.health = _origHealth;
+            _pd.maxHealth = _origMaxHealth;
+            _pd.maxHealthBase = _origMaxHealthBase;
+            _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
+
             ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
         }
 
@@ -240,7 +251,8 @@ namespace PropHunt.Behaviors
             _propSprite.sprite = breakSprite;
             if (breakSprite != null)
             {
-                _col.size = breakCol.size;
+                _propCol.enabled = true;
+                _propCol.size = breakCol.size;
 
                 Vector2 breakSize = breakSprite.bounds.size;
                 var area = breakSize.x * breakSize.y;
@@ -352,11 +364,11 @@ namespace PropHunt.Behaviors
         /// </summary>
         public void ClearProp()
         {
-            _col.size = _origColSize;
+            _propCol.enabled = false;
 
-            _pd.health = _origHealth;
-            _pd.maxHealth = _origMaxHealth;
-            _pd.maxHealthBase = _origMaxHealthBase;
+            _pd.health = 1;
+            _pd.maxHealth = 1;
+            _pd.maxHealthBase = 1;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
 
             _propState = PropState.Free;
