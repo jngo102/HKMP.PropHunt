@@ -20,9 +20,15 @@ namespace PropHunt.HKMP
         public override void Initialize(IServerApi serverApi)
         {
             Instance = this;
-            
+
+            // A collection of all currently alive players on the Hunters team
+            List<IServerPlayer> livingHunters = new();
             // A collection of all currently alive players on the Props team
             List<IServerPlayer> livingProps = new();
+            // The total number of hunters playing.
+            ushort totalHunters = 0;
+            // The total number of props playing.
+            ushort totalProps = 0;
 
             var sender = serverApi.NetServer.GetNetworkSender<FromServerToClientPackets>(Instance);
             var receiver = serverApi.NetServer.GetNetworkReceiver<FromClientToServerPackets>(Instance, serverPacket =>
@@ -52,7 +58,7 @@ namespace PropHunt.HKMP
             intervalTimer.Interval = 1000;
             intervalTimer.AutoReset = true;
 
-            roundTimer.Elapsed += (obj, e) =>
+            roundTimer.Elapsed += (_, _) =>
             {
                 intervalTimer.Stop();
 
@@ -168,8 +174,12 @@ namespace PropHunt.HKMP
                         int halfCount = players.Count / 2;
                         var hunters = players.GetRange(0, halfCount);
                         var props = players.GetRange(halfCount, players.Count - halfCount);
+                        livingHunters.Clear();
+                        livingHunters.AddRange(hunters);
+                        totalHunters = (ushort)livingHunters.Count;
                         livingProps.Clear();
                         livingProps.AddRange(props);
+                        totalProps = (ushort)livingProps.Count;
 
                         sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt,
                             new SetPlayingPropHuntFromServerToClientData
@@ -216,27 +226,57 @@ namespace PropHunt.HKMP
             receiver.RegisterPacketHandler<ReliableEmptyData>
             (
                 FromClientToServerPackets.PlayerDeath,
-                (id, packetData) =>
+                (id, _) =>
                 {
-
                     var deadProp = livingProps.FirstOrDefault(prop => prop.Id == id);
-                    if (deadProp != null) livingProps.Remove(deadProp);
+                    var deadHunter = livingHunters.FirstOrDefault(hunter => hunter.Id == id);
 
-                    if (livingProps.Count <= 0)
+                    if (deadProp != null)
                     {
-                        roundTimer.Stop();
-                        intervalTimer.Stop();
-                        sender.BroadcastSingleData(FromServerToClientPackets.EndRound, new EndRoundFromServerToClientData
+                        livingProps.Remove(deadProp);
+
+                        if (livingProps.Count <= 0)
                         {
-                            HuntersWin = true,
-                        });
-                        return;
+                            roundTimer.Stop();
+                            intervalTimer.Stop();
+                            sender.BroadcastSingleData(
+                                FromServerToClientPackets.EndRound, 
+                                new EndRoundFromServerToClientData
+                                {
+                                    HuntersWin = true,
+                                }
+                            );
+                            return;
+                        }
+                    }
+                    else if (deadHunter != null)
+                    {
+                        livingHunters.Remove(deadHunter);
+
+                        if (livingHunters.Count <= 0)
+                        {
+                            roundTimer.Stop();
+                            intervalTimer.Stop();
+                            sender.BroadcastSingleData(
+                                FromServerToClientPackets.EndRound, 
+                                new EndRoundFromServerToClientData
+                                {
+                                    HuntersWin = false,
+                                }
+                            );
+                            return;
+                        }
                     }
 
-                    sender.BroadcastSingleData(FromServerToClientPackets.PlayerDeath,
+                    sender.BroadcastSingleData(
+                        FromServerToClientPackets.PlayerDeath,
                         new PlayerDeathFromServerToClientData
                         {
                             PlayerId = id,
+                            HuntersRemaining = (ushort)livingHunters.Count,
+                            HuntersTotal = totalHunters,
+                            PropsRemaining = (ushort)livingProps.Count,
+                            PropsTotal = totalProps,
                         }
                     );
                 }

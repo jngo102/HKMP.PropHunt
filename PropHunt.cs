@@ -37,7 +37,7 @@ namespace PropHunt
 
             ClientAddon.RegisterAddon(_clientAddon);
             ServerAddon.RegisterAddon(_serverAddon);
-            
+
             GameManager.instance.gameObject.AddComponent<PropInputHandler>();
             GameCameras.instance.hudCanvas.AddComponent<RoundTimer>();
 

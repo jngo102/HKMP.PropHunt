@@ -1,12 +1,11 @@
-using System.Collections;
 using Hkmp.Api.Client.Networking;
 using PropHunt.HKMP;
 using PropHunt.Input;
 using PropHunt.Util;
+using System.Collections;
 using System.Collections.Generic;
-using Hkmp.Networking.Packet.Data;
-using Modding;
 using UnityEngine;
+
 using HKMPVector2 = Hkmp.Math.Vector2;
 
 namespace PropHunt.Behaviors
@@ -33,13 +32,15 @@ namespace PropHunt.Behaviors
 
         private const float LARGEST_SPRITE_AREA = 25;
         private const float SMALLEST_SPRITE_AREA = 0;
-        
+
+        private Vector2 _origColSize;
         private int _origHealth;
         private int _origMaxHealth;
         private int _origMaxHealthBase;
 
         private readonly List<PlayMakerFSM> _healthDisplays = new();
-        
+
+        private BoxCollider2D _col;
         private HeroController _hc;
         private HeroActions _heroInput;
         private PropActions _propInput;
@@ -49,12 +50,12 @@ namespace PropHunt.Behaviors
         public GameObject Prop { get; private set; }
         private IClientAddonNetworkSender<FromClientToServerPackets> _sender;
         private SpriteRenderer _propSprite;
-        private BoxCollider2D _propCol;
         public Sprite PropSprite => _propSprite.sprite;
         private PropState _propState = PropState.Free;
 
         private void Awake()
         {
+            _col = GetComponent<BoxCollider2D>();
             _hc = GetComponent<HeroController>();
             _heroInput = GameManager.instance.inputHandler.inputActions;
             _propInput = PropInputHandler.Instance.InputActions;
@@ -62,14 +63,12 @@ namespace PropHunt.Behaviors
             _pd = PlayerData.instance;
             _username = transform.Find("Username").gameObject;  
             Prop = new GameObject("Prop");
-
-            Prop.layer = (int)GlobalEnums.PhysLayers.PLAYER;
             Prop.transform.SetParent(transform);
             Prop.transform.localPosition = Vector3.zero;
-            _propCol = Prop.AddComponent<BoxCollider2D>();
             _propSprite = Prop.AddComponent<SpriteRenderer>();
             _sender = PropHuntClientAddon.Instance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(PropHuntClientAddon.Instance);
-            
+
+            _origColSize = _col.size;
             _origHealth = _pd.health;
             _origMaxHealth = _pd.maxHealth;
             _origMaxHealthBase = _pd.maxHealthBase;
@@ -95,13 +94,15 @@ namespace PropHunt.Behaviors
 
         private void OnEnable()
         {
+            EnableInput(false);
+
             _pd.health = 1;
             _pd.maxHealth = 1;
             _pd.maxHealthBase = 1;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
-
-            EnableInput(false);
-            ModHooks.BeforePlayerDeadHook += OnPlayerDeath;
+            
+            On.GameManager.HazardRespawn += OnHazardRespawn;
+            On.HeroController.EnterScene += OnEnterScene;
         }
 
         private void OnDisable()
@@ -113,14 +114,23 @@ namespace PropHunt.Behaviors
             _pd.maxHealth = _origMaxHealth;
             _pd.maxHealthBase = _origMaxHealthBase;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
-
-            ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
+            
+            On.GameManager.HazardRespawn -= OnHazardRespawn;
+            On.HeroController.EnterScene -= OnEnterScene;
         }
 
-        private void OnPlayerDeath()
+        private void OnHazardRespawn(On.GameManager.orig_HazardRespawn orig, GameManager self)
         {
-            PropHunt.Instance.Log("You have died.");
-            _sender.SendSingleData(FromClientToServerPackets.PlayerDeath, new ReliableEmptyData());
+            orig(self);
+
+            if (PropSprite != null) _meshRend.enabled = false;
+        }
+
+        private IEnumerator OnEnterScene(On.HeroController.orig_EnterScene orig, HeroController self, TransitionPoint enterGate, float delayBeforeEnter)
+        {
+            yield return orig(self, enterGate, delayBeforeEnter);
+
+            if (PropSprite != null) _meshRend.enabled = false;
         }
 
         /// <summary>
@@ -251,8 +261,7 @@ namespace PropHunt.Behaviors
             _propSprite.sprite = breakSprite;
             if (breakSprite != null)
             {
-                _propCol.enabled = true;
-                _propCol.size = breakCol.size;
+                _col.size = breakCol.size;
 
                 Vector2 breakSize = breakSprite.bounds.size;
                 var area = breakSize.x * breakSize.y;
@@ -364,7 +373,7 @@ namespace PropHunt.Behaviors
         /// </summary>
         public void ClearProp()
         {
-            _propCol.enabled = false;
+            _col.size = _origColSize;
 
             _pd.health = 1;
             _pd.maxHealth = 1;
@@ -376,6 +385,8 @@ namespace PropHunt.Behaviors
             _meshRend.enabled = true;
             _hc.AcceptInput();
             _hc.RegainControl();
+
+            _username.SetActive(true);
 
             _sender.SendSingleData
             (

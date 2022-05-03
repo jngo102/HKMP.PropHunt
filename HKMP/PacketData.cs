@@ -193,15 +193,27 @@ namespace PropHunt.HKMP
         public bool DropReliableDataIfNewerExists => true;
 
         public ushort PlayerId { get; set; }
+        public ushort HuntersRemaining { get; set; }
+        public ushort HuntersTotal { get; set; }
+        public ushort PropsRemaining { get; set; }
+        public ushort PropsTotal { get; set; }
 
         public void ReadData(IPacket packet)
         {
             PlayerId = packet.ReadUShort();
+            HuntersRemaining = packet.ReadUShort();
+            HuntersTotal = packet.ReadUShort();
+            PropsRemaining = packet.ReadUShort();
+            PropsTotal = packet.ReadUShort();
         }
 
         public void WriteData(IPacket packet)
         {
             packet.Write(PlayerId);
+            packet.Write(HuntersRemaining);
+            packet.Write(HuntersTotal);
+            packet.Write(PropsRemaining);
+            packet.Write(PropsTotal);
         }
     }
 

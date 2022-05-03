@@ -1,6 +1,8 @@
 using GlobalEnums;
 using Hkmp.Api.Client;
 using Hkmp.Game;
+using Hkmp.Networking.Packet.Data;
+using Modding;
 using PropHunt.Behaviors;
 using PropHunt.UI;
 using System.Collections;
@@ -36,7 +38,8 @@ namespace PropHunt.HKMP
             PropHuntClientAddonApi = clientApi;
 
             _cachedPropSprites = new Dictionary<ushort, Sprite>();
-            
+
+            var sender = clientApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
             var receiver = clientApi.NetClient.GetNetworkReceiver<FromServerToClientPackets>(Instance, clientPacket =>
             {
                 return clientPacket switch
@@ -136,6 +139,8 @@ namespace PropHunt.HKMP
                     var playing = packetData.Playing;
                     if (playing)
                     {
+                        ModHooks.BeforePlayerDeadHook += OnPlayerDeath;
+
                         PlayerData.instance.isInvincible = false;
 
                         var dreamMsg = GameCameras.instance.hudCamera.transform.Find("DialogueManager/Dream Msg");
@@ -177,6 +182,8 @@ namespace PropHunt.HKMP
                     }
                     else
                     {
+                        ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
+
                         var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
                         var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
                         blankerCtrl.SendEvent("FADE OUT INSTANT");
@@ -206,7 +213,9 @@ namespace PropHunt.HKMP
 
                     var dreamMsg = GameCameras.instance.hudCamera.transform.Find("DialogueManager/Dream Msg");
                     var dreamFSM = dreamMsg.gameObject.LocateMyFSM("Display");
-                    dreamFSM.Fsm.GetFsmString("Convo Text").Value = $"Player {player.Username} has died!";
+                    dreamFSM.Fsm.GetFsmString("Convo Text").Value = $"Player {player.Username} has died!" +
+                                                                           $"\nProps remaining: {packetData.PropsRemaining}/{packetData.PropsTotal}" +
+                                                                           $"\nHunters remaining: {packetData.HuntersRemaining}/{packetData.HuntersTotal}";
                     dreamFSM.SetState("Display Text");
                 }
             );
@@ -270,8 +279,15 @@ namespace PropHunt.HKMP
             Object.DontDestroyOnLoad(_damager);
             _damager.SetActive(false);
 
-            clientApi.ClientManager.ConnectEvent += () => InitComponents(); ;
-            clientApi.ClientManager.PlayerConnectEvent += (player) =>
+            clientApi.ClientManager.ConnectEvent += () => InitComponents();
+            clientApi.ClientManager.DisconnectEvent += () =>
+            {
+                sender.SendSingleData(
+                    FromClientToServerPackets.PlayerDeath,
+                    new ReliableEmptyData());
+            };
+
+            clientApi.ClientManager.PlayerConnectEvent += player =>
             {
                 var localPropManager = HeroController.instance.GetComponent<LocalPropManager>();
                 localPropManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
@@ -334,7 +350,7 @@ namespace PropHunt.HKMP
                     }
                 );
             };
-            clientApi.ClientManager.PlayerEnterSceneEvent += (player) =>
+            clientApi.ClientManager.PlayerEnterSceneEvent += player =>
             {
                 var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
                 propManager ??= player.PlayerObject.AddComponent<RemotePropManager>();
@@ -350,8 +366,7 @@ namespace PropHunt.HKMP
                 heroPropManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
 
                 if (heroPropManager.PropSprite == null) return;
-
-                var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
+                
                 sender.SendSingleData(
                     FromClientToServerPackets.BroadcastPropSprite,
                     new PropSpriteFromClientToServerData
@@ -394,6 +409,14 @@ namespace PropHunt.HKMP
                     }
                 );
             };
+        }
+
+        private void OnPlayerDeath()
+        {
+            var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
+            sender.SendSingleData(
+                FromClientToServerPackets.PlayerDeath,
+                new ReliableEmptyData());
         }
 
         private void OnBreakableBreak(On.Breakable.orig_Break orig, Breakable self, float flingAngleMin, float flingAngleMax, float impactMultiplier)

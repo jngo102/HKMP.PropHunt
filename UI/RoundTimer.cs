@@ -1,6 +1,7 @@
 ﻿using GlobalEnums;
 using System;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 
 namespace PropHunt.UI
@@ -8,17 +9,21 @@ namespace PropHunt.UI
     internal class RoundTimer : MonoBehaviour
     {
         private GameObject _timer;
-        private TextMesh _textMesh;
+        private TextMeshPro _textMesh;
 
         private void Awake()
         {
-            _timer = new GameObject("Round Timer");
-            _timer.layer = (int)PhysLayers.UI;
+            _timer = new GameObject("Round Timer")
+            {
+                layer = (int)PhysLayers.UI
+            };
+
             _timer.transform.SetParent(transform.Find("Geo Counter"));
-            _timer.transform.localPosition = new Vector2(-10.65f, 5.5f);
+            _timer.transform.localPosition = new Vector2(-9, 5.5f);
             _timer.transform.localScale = Vector3.one * 0.1527f;
-            _textMesh = _timer.AddComponent<TextMesh>();
-            _textMesh.anchor = TextAnchor.MiddleLeft;
+            _textMesh = _timer.AddComponent<TextMeshPro>();
+            _textMesh.font = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
+                .FirstOrDefault(font => font.name == "trajan_bold_tmpro");
             _textMesh.fontSize = 45;
             _textMesh.text = "0:00";
         }
