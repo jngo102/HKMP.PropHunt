@@ -37,6 +37,10 @@ namespace PropHunt.Behaviors
         private int _origHealth;
         private int _origMaxHealth;
         private int _origMaxHealthBase;
+        private Vector3 _origNormalSlashScale;
+        private Vector3 _origAltSlashScale;
+        private Vector3 _origUpSlashScale;
+        private Vector3 _origDownSlashScale;
 
         private readonly List<PlayMakerFSM> _healthDisplays = new();
 
@@ -72,6 +76,10 @@ namespace PropHunt.Behaviors
             _origHealth = _pd.health;
             _origMaxHealth = _pd.maxHealth;
             _origMaxHealthBase = _pd.maxHealthBase;
+            _origNormalSlashScale = _hc.normalSlash.scale;
+            _origAltSlashScale = _hc.alternateSlash.scale;
+            _origUpSlashScale = _hc.upSlash.scale;
+            _origDownSlashScale = _hc.downSlash.scale;
         }
 
         private IEnumerator Start()
@@ -101,6 +109,11 @@ namespace PropHunt.Behaviors
             _pd.maxHealthBase = 1;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
             
+            _hc.normalSlash.scale = Vector3.one * 0.1f;
+            _hc.alternateSlash.scale = Vector3.one * 0.1f;
+            _hc.upSlash.scale = Vector3.one * 0.1f;
+            _hc.downSlash.scale = Vector3.one * 0.1f;
+
             On.GameManager.HazardRespawn += OnHazardRespawn;
             On.HeroController.EnterScene += OnEnterScene;
         }
@@ -114,7 +127,12 @@ namespace PropHunt.Behaviors
             _pd.maxHealth = _origMaxHealth;
             _pd.maxHealthBase = _origMaxHealthBase;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
-            
+
+            _hc.normalSlash.scale = _origNormalSlashScale;
+            _hc.alternateSlash.scale = _origAltSlashScale;
+            _hc.upSlash.scale = _origUpSlashScale;
+            _hc.downSlash.scale = _origDownSlashScale;
+
             On.GameManager.HazardRespawn -= OnHazardRespawn;
             On.HeroController.EnterScene -= OnEnterScene;
         }
@@ -141,7 +159,6 @@ namespace PropHunt.Behaviors
         {
             if (enable)
             {
-                On.HeroController.CanAttack     -= RemoveAttack;
                 On.HeroController.CanCast       -= RemoveCast;
                 On.HeroController.CanDreamNail  -= RemoveDreamNail;
                 On.HeroController.CanFocus      -= RemoveFocus;
@@ -149,7 +166,6 @@ namespace PropHunt.Behaviors
             }
             else
             {
-                On.HeroController.CanAttack     += RemoveAttack;
                 On.HeroController.CanCast       += RemoveCast;
                 On.HeroController.CanDreamNail  += RemoveDreamNail;
                 On.HeroController.CanFocus      += RemoveFocus;
@@ -157,7 +173,6 @@ namespace PropHunt.Behaviors
             }
         }
         
-        private bool RemoveAttack(On.HeroController.orig_CanAttack orig, HeroController self) => false;
         private bool RemoveCast(On.HeroController.orig_CanCast orig, HeroController self) => false;
         private bool RemoveDreamNail(On.HeroController.orig_CanDreamNail orig, HeroController self) => false;
         private bool RemoveFocus(On.HeroController.orig_CanFocus orig, HeroController self) => false;
