@@ -8,6 +8,7 @@ using PropHunt.UI;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 using HKMPVector2 = Hkmp.Math.Vector2;
 
@@ -19,16 +20,6 @@ namespace PropHunt.HKMP
         protected override string Version => PropHunt.Instance.GetVersion();
         public override bool NeedsNetwork => true;
 
-        /// <summary>
-        /// A collection of player IDs and the sprites associated with them.
-        /// </summary>
-        private static Dictionary<ushort, Sprite> _cachedPropSprites;
-        
-        /// <summary>
-        /// A dummy object used to damage the player when they are a Hunter and break a Breakable.
-        /// </summary>
-        private GameObject _damager;
-
         public static PropHuntClientAddon Instance { get; private set; }
         public IClientApi PropHuntClientAddonApi { get; private set; }
 
@@ -36,8 +27,6 @@ namespace PropHunt.HKMP
         {
             Instance = this;
             PropHuntClientAddonApi = clientApi;
-
-            _cachedPropSprites = new Dictionary<ushort, Sprite>();
 
             var sender = clientApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
             var receiver = clientApi.NetClient.GetNetworkReceiver<FromServerToClientPackets>(Instance, clientPacket =>
@@ -52,6 +41,7 @@ namespace PropHunt.HKMP
                     FromServerToClientPackets.SetPlayingPropHunt => new SetPlayingPropHuntFromServerToClientData(),
                     FromServerToClientPackets.PlayerDeath => new PlayerDeathFromServerToClientData(),
                     FromServerToClientPackets.UpdateRoundTimer => new UpdateRoundTimerFromServerToClientData(),
+                    FromServerToClientPackets.UpdateGraceTimer => new UpdateGraceTimerFromServerToClientData(),
                     FromServerToClientPackets.EndRound => new EndRoundFromServerToClientData(),
                     _ => null
                 };
@@ -67,16 +57,6 @@ namespace PropHunt.HKMP
                         ? null
                         : Resources.FindObjectsOfTypeAll<Sprite>()
                             .FirstOrDefault(sprite => sprite.name == packetData.SpriteName);
-                    PropHunt.Instance.Log("Caching sprite of player: " + packetData.PlayerId);
-                    if (propSprite != null)
-                    {
-                        _cachedPropSprites[packetData.PlayerId] = propSprite;
-                    }
-                    else if (_cachedPropSprites.ContainsKey(packetData.PlayerId))
-                    {
-                        _cachedPropSprites.Remove(packetData.PlayerId);
-                    }
-
                     var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
                     propManager ??= player.PlayerObject.AddComponent<RemotePropManager>();
                     propManager.SetPropSprite(propSprite);
@@ -143,9 +123,7 @@ namespace PropHunt.HKMP
 
                         PlayerData.instance.isInvincible = false;
 
-                        var dreamMsg = GameCameras.instance.hudCamera.transform.Find("DialogueManager/Dream Msg");
-                        var dreamFSM = dreamMsg.gameObject.LocateMyFSM("Display");
-                        dreamFSM.Fsm.GetFsmString("Sheet").Value = "PROP_HUNT";
+                        var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
 
                         if (packetData.PropHuntTeam == (byte)PropHuntTeam.Hunters)
                         {
@@ -156,9 +134,7 @@ namespace PropHunt.HKMP
                             propManager.enabled = false;
 
                             PropHunt.Instance.Log("You are a HUNTER");
-
-                            dreamFSM.Fsm.GetFsmString("Convo Title").Value = "HUNTER_MESSAGE";
-                            dreamFSM.SendEvent("DISPLAY DREAM MSG");
+                            ui.SetPropHuntMessage("You are a hunter!");
 
                             HeroController.instance.SetMPCharge(198);
                             GameManager.instance.soulOrb_fsm.SendEvent("MP GAIN");
@@ -173,9 +149,7 @@ namespace PropHunt.HKMP
                             propManager.enabled = true;
 
                             PropHunt.Instance.Log("You are a PROP");
-                            
-                            dreamFSM.Fsm.GetFsmString("Convo Title").Value = "PROP_MESSAGE";
-                            dreamFSM.SendEvent("DISPLAY DREAM MSG");
+                            ui.SetPropHuntMessage("You are a prop!");
 
                             On.Breakable.Break -= OnBreakableBreak;
                         }
@@ -194,8 +168,9 @@ namespace PropHunt.HKMP
 
                         hunter.enabled = false;
                         propManager.enabled = false;
-
-                        GameCameras.instance.hudCanvas.GetComponent<RoundTimer>().SetTimeRemaining(0);
+                        var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+                        ui.SetTimeRemainingInRound(0);
+                        ui.SetGraceTimeRemaining(0);
 
                         On.Breakable.Break -= OnBreakableBreak;
                     }
@@ -210,13 +185,12 @@ namespace PropHunt.HKMP
                     var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
 
                     PropHunt.Instance.Log($"Player {player.Username} has died.");
+                    
+                    string text = $"Player {player.Username} has died!" +
+                                  $"\nProps remaining: {packetData.PropsRemaining}/{packetData.PropsTotal}" +
+                                  $"\nHunters remaining: {packetData.HuntersRemaining}/{packetData.HuntersTotal}";
 
-                    var dreamMsg = GameCameras.instance.hudCamera.transform.Find("DialogueManager/Dream Msg");
-                    var dreamFSM = dreamMsg.gameObject.LocateMyFSM("Display");
-                    dreamFSM.Fsm.GetFsmString("Convo Text").Value = $"Player {player.Username} has died!" +
-                                                                           $"\nProps remaining: {packetData.PropsRemaining}/{packetData.PropsTotal}" +
-                                                                           $"\nHunters remaining: {packetData.HuntersRemaining}/{packetData.HuntersTotal}";
-                    dreamFSM.SetState("Display Text");
+                    GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetPropHuntMessage(text);
                 }
             );
 
@@ -226,8 +200,19 @@ namespace PropHunt.HKMP
                 packetData =>
                 {
                     int timeRemaining = packetData.TimeRemaining;
-                    PropHunt.Instance.Log("Seconds remaining: " + timeRemaining);
-                    GameCameras.instance.hudCanvas.GetComponent<RoundTimer>().SetTimeRemaining(timeRemaining);
+                    PropHunt.Instance.Log("Seconds remaining in round: " + timeRemaining);
+                    GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetTimeRemainingInRound(timeRemaining);
+                }
+            );
+
+            receiver.RegisterPacketHandler<UpdateGraceTimerFromServerToClientData>
+            (
+                FromServerToClientPackets.UpdateGraceTimer,
+                packetData =>
+                {
+                    int timeRemaining = packetData.TimeRemaining;
+                    PropHunt.Instance.Log("Grace time remaining: " + timeRemaining);
+                    GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetGraceTimeRemaining(timeRemaining);
                 }
             );
 
@@ -236,6 +221,8 @@ namespace PropHunt.HKMP
                 FromServerToClientPackets.EndRound,
                 packetData =>
                 {
+                    ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
+
                     var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
                     var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
                     blankerCtrl.SendEvent("FADE OUT INSTANT");
@@ -246,9 +233,7 @@ namespace PropHunt.HKMP
 
                     InitComponents();
 
-                    var dreamMsg = GameCameras.instance.hudCamera.transform.Find("DialogueManager/Dream Msg");
-                    var dreamFSM = dreamMsg.gameObject.LocateMyFSM("Display");
-                    dreamFSM.Fsm.GetFsmString("Sheet").Value = "PROP_HUNT";
+                    var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
 
                     On.Breakable.Break -= OnBreakableBreak;
 
@@ -256,29 +241,18 @@ namespace PropHunt.HKMP
                     if (huntersWin)
                     {
                         PropHunt.Instance.Log("HUNTERS WIN");
-                        dreamFSM.Fsm.GetFsmString("Convo Title").Value = "HUNTERS_WIN";
-                        dreamFSM.SendEvent("DISPLAY DREAM MSG");
+                        ui.SetPropHuntMessage("Hunters win!");
                     }
                     else
                     {
                         PropHunt.Instance.Log("PROPS WIN");
-                        dreamFSM.Fsm.GetFsmString("Convo Title").Value = "PROPS_WIN";
-                        dreamFSM.SendEvent("DISPLAY DREAM MSG");
+                        ui.SetPropHuntMessage("Props win!");
                     }
                 }
             );
 
             clientApi.CommandManager.RegisterCommand(new PropHuntCommand());
-
-            _damager = new GameObject("Damager");
-            _damager.layer = (int)PhysLayers.ENEMIES;
-            _damager.AddComponent<DamageHero>().damageDealt = 1;
-            var col = _damager.AddComponent<CircleCollider2D>();
-            col.isTrigger = true;
-            col.radius = 1;
-            Object.DontDestroyOnLoad(_damager);
-            _damager.SetActive(false);
-
+            
             clientApi.ClientManager.ConnectEvent += () => InitComponents();
             clientApi.ClientManager.DisconnectEvent += () =>
             {
@@ -341,27 +315,9 @@ namespace PropHunt.HKMP
                         ScaleFactor = propTransform.localScale.x,
                     }
                 );
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.SetPlayingPropHunt,
-                    new SetPlayingPropHuntFromClientToServerData
-                    {
-                        Playing = localPropManager.enabled,
-                    }
-                );
             };
             clientApi.ClientManager.PlayerEnterSceneEvent += player =>
             {
-                var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
-                propManager ??= player.PlayerObject.AddComponent<RemotePropManager>();
-
-                if (!propManager.enabled) return;
-
-                if (_cachedPropSprites.ContainsKey(player.Id))
-                {
-                    propManager.SetPropSprite(_cachedPropSprites[player.Id]);
-                }
-
                 var heroPropManager = HeroController.instance.GetComponent<LocalPropManager>();
                 heroPropManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
 
@@ -421,23 +377,11 @@ namespace PropHunt.HKMP
 
         private void OnBreakableBreak(On.Breakable.orig_Break orig, Breakable self, float flingAngleMin, float flingAngleMax, float impactMultiplier)
         {
+            HeroController.instance.TakeDamage(null, CollisionSide.top, 1, (int)HazardType.PIT);
+
             orig(self, flingAngleMin, flingAngleMax, impactMultiplier);
-
-            _damager.SetActive(true);
-            _damager.transform.SetPosition2D(HeroController.instance.transform.position);
-            GameManager.instance.StartCoroutine(DisableDamagerDelayed());
         }
 
-        /// <summary>
-        /// Solely used to deactivate the damager that harms a hunter when they break a Breakable.
-        /// </summary>
-        private IEnumerator DisableDamagerDelayed()
-        {
-            yield return new WaitForSeconds(0.1f);
-
-            _damager.SetActive(false);
-        }
-        
         /// <summary>
         /// Initialize components on the local player object.
         /// </summary>

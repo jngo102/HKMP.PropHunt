@@ -4,6 +4,7 @@ using PropHunt.Input;
 using PropHunt.Util;
 using System.Collections;
 using System.Collections.Generic;
+using GlobalEnums;
 using UnityEngine;
 
 using HKMPVector2 = Hkmp.Math.Vector2;
@@ -37,10 +38,6 @@ namespace PropHunt.Behaviors
         private int _origHealth;
         private int _origMaxHealth;
         private int _origMaxHealthBase;
-        private Vector3 _origNormalSlashScale;
-        private Vector3 _origAltSlashScale;
-        private Vector3 _origUpSlashScale;
-        private Vector3 _origDownSlashScale;
 
         private readonly List<PlayMakerFSM> _healthDisplays = new();
 
@@ -76,10 +73,6 @@ namespace PropHunt.Behaviors
             _origHealth = _pd.health;
             _origMaxHealth = _pd.maxHealth;
             _origMaxHealthBase = _pd.maxHealthBase;
-            _origNormalSlashScale = _hc.normalSlash.scale;
-            _origAltSlashScale = _hc.alternateSlash.scale;
-            _origUpSlashScale = _hc.upSlash.scale;
-            _origDownSlashScale = _hc.downSlash.scale;
         }
 
         private IEnumerator Start()
@@ -109,13 +102,10 @@ namespace PropHunt.Behaviors
             _pd.maxHealthBase = 1;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
             
-            _hc.normalSlash.scale = Vector3.one * 0.1f;
-            _hc.alternateSlash.scale = Vector3.one * 0.1f;
-            _hc.upSlash.scale = Vector3.one * 0.1f;
-            _hc.downSlash.scale = Vector3.one * 0.1f;
-
-            On.GameManager.HazardRespawn += OnHazardRespawn;
-            On.HeroController.EnterScene += OnEnterScene;
+            On.GameManager.HazardRespawn            += OnHazardRespawn;
+            On.HeroController.EnterScene            += OnEnterScene;
+            On.HeroController.FinishedEnteringScene += OnFinishEnteringScene;
+            On.HeroController.TakeDamage            += OnTakeDamage;
         }
 
         private void OnDisable()
@@ -127,14 +117,11 @@ namespace PropHunt.Behaviors
             _pd.maxHealth = _origMaxHealth;
             _pd.maxHealthBase = _origMaxHealthBase;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
-
-            _hc.normalSlash.scale = _origNormalSlashScale;
-            _hc.alternateSlash.scale = _origAltSlashScale;
-            _hc.upSlash.scale = _origUpSlashScale;
-            _hc.downSlash.scale = _origDownSlashScale;
-
-            On.GameManager.HazardRespawn -= OnHazardRespawn;
-            On.HeroController.EnterScene -= OnEnterScene;
+            
+            On.GameManager.HazardRespawn            -= OnHazardRespawn;
+            On.HeroController.EnterScene            -= OnEnterScene;
+            On.HeroController.FinishedEnteringScene -= OnFinishEnteringScene;
+            On.HeroController.TakeDamage            -= OnTakeDamage;
         }
 
         private void OnHazardRespawn(On.GameManager.orig_HazardRespawn orig, GameManager self)
@@ -149,6 +136,20 @@ namespace PropHunt.Behaviors
             yield return orig(self, enterGate, delayBeforeEnter);
 
             if (PropSprite != null) _meshRend.enabled = false;
+        }
+
+        private void OnFinishEnteringScene(On.HeroController.orig_FinishedEnteringScene orig, HeroController self, bool setHazardMarker, bool preventRunBob)
+        {
+            orig(self, setHazardMarker, preventRunBob);
+
+            if (PropSprite != null) _meshRend.enabled = false;
+        }
+
+        private void OnTakeDamage(On.HeroController.orig_TakeDamage orig, HeroController self, GameObject go, CollisionSide damageSide, int damageAmount, int hazardType)
+        {
+            orig(self, go, damageSide, damageAmount, hazardType);
+
+            _propState = PropState.Free;
         }
 
         /// <summary>

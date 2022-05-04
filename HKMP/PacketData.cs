@@ -166,6 +166,27 @@ namespace PropHunt.HKMP
         }
     }
 
+    internal class UpdateGraceTimerFromServerToClientData : IPacketData
+    {
+        public bool IsReliable => false;
+        public bool DropReliableDataIfNewerExists => false;
+
+        public ushort PlayerId { get; set; }
+        public int TimeRemaining { get; set; }
+
+        public void ReadData(IPacket packet)
+        {
+            PlayerId = packet.ReadUShort();
+            TimeRemaining = packet.ReadInt();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(PlayerId);
+            packet.Write(TimeRemaining);
+        }
+    }
+
     internal class EndRoundFromServerToClientData : IPacketData
     {
         public bool IsReliable => true;
@@ -226,6 +247,7 @@ namespace PropHunt.HKMP
         SendPropScale,
         SetPlayingPropHunt,
         UpdateRoundTimer,
+        UpdateGraceTimer,
         EndRound,
         PlayerDeath,
     }

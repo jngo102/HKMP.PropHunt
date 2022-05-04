@@ -1,11 +1,11 @@
 using Hkmp.Api.Server;
-using Hkmp.Networking.Packet;
+using Hkmp.Networking.Packet.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Timers;
-using Hkmp.Networking.Packet.Data;
+using Random = UnityEngine.Random;
 
 namespace PropHunt.HKMP
 {
@@ -17,18 +17,24 @@ namespace PropHunt.HKMP
 
         public static PropHuntServerAddon Instance { get; private set; }
 
+        // A collection of all hunters playing
+        private List<IServerPlayer> _allHunters = new();
+        // A collection of all props playing
+        private List<IServerPlayer> _allProps = new();
+        // A collection of all currently alive players on the Hunters team
+        private List<IServerPlayer> _livingHunters = new();
+        // A collection of all currently alive players on the Props team
+        private List<IServerPlayer> _livingProps = new();
+        // The total number of hunters playing
+        private ushort _totalHunters => (ushort)_allHunters.Count;
+        // The total number of props playing
+        private ushort _totalProps => (ushort)_allProps.Count;
+        // Whether a round has started
+        private bool _roundStarted = false;
+
         public override void Initialize(IServerApi serverApi)
         {
             Instance = this;
-
-            // A collection of all currently alive players on the Hunters team
-            List<IServerPlayer> livingHunters = new();
-            // A collection of all currently alive players on the Props team
-            List<IServerPlayer> livingProps = new();
-            // The total number of hunters playing.
-            ushort totalHunters = 0;
-            // The total number of props playing.
-            ushort totalProps = 0;
 
             var sender = serverApi.NetServer.GetNetworkSender<FromServerToClientPackets>(Instance);
             var receiver = serverApi.NetServer.GetNetworkReceiver<FromClientToServerPackets>(Instance, serverPacket =>
@@ -49,9 +55,10 @@ namespace PropHunt.HKMP
             // Timer that handles the length of time that a round goes for
             var roundTimer = new Timer();
             roundTimer.AutoReset = false;
-
             // A date-time object that contains the time at which a round will end.
             var dueTimeRound = DateTime.Now;
+            // A date-time object that contains the time at which the grace period will end.
+            var dueTimeGrace = DateTime.Now;
 
             // Timer that handles updating every player's timer each second
             var intervalTimer = new Timer();
@@ -64,16 +71,31 @@ namespace PropHunt.HKMP
 
                 sender.BroadcastSingleData(FromServerToClientPackets.EndRound, new EndRoundFromServerToClientData
                 {
-                    HuntersWin = livingProps.Count <= 0,
+                    HuntersWin = _livingProps.Count <= 0,
                 });
             };
 
             intervalTimer.Elapsed += (obj, e) =>
             {
-                sender.BroadcastSingleData(FromServerToClientPackets.UpdateRoundTimer, new UpdateRoundTimerFromServerToClientData
+                sender.BroadcastSingleData(
+                    FromServerToClientPackets.UpdateRoundTimer, 
+                    new UpdateRoundTimerFromServerToClientData
+                    {
+                        TimeRemaining = (int)(dueTimeRound - DateTime.Now).TotalSeconds,
+                    }
+                );
+
+                var graceTimeRemaining = (dueTimeGrace - DateTime.Now).TotalSeconds;
+                if (graceTimeRemaining > 0)
                 {
-                    TimeRemaining = (int)(dueTimeRound - DateTime.Now).TotalSeconds,
-                });
+                    sender.BroadcastSingleData(
+                        FromServerToClientPackets.UpdateGraceTimer, 
+                        new UpdateGraceTimerFromServerToClientData
+                        {
+                            TimeRemaining = (int)graceTimeRemaining,
+                        }
+                    );
+                }
             };
 
             receiver.RegisterPacketHandler<PropSpriteFromClientToServerData>
@@ -166,20 +188,23 @@ namespace PropHunt.HKMP
                 FromClientToServerPackets.SetPlayingPropHunt,
                 (id, packetData) =>
                 {
-                    bool playing = packetData.Playing;
-                    if (playing)
+                    _roundStarted = packetData.Playing;
+                    if (_roundStarted)
                     {
                         var players = serverApi.ServerManager.Players.ToList();
                         players = players.OrderBy(_ => Guid.NewGuid()).ToList();
                         int halfCount = players.Count / 2;
-                        var hunters = players.GetRange(0, halfCount);
-                        var props = players.GetRange(halfCount, players.Count - halfCount);
-                        livingHunters.Clear();
-                        livingHunters.AddRange(hunters);
-                        totalHunters = (ushort)livingHunters.Count;
-                        livingProps.Clear();
-                        livingProps.AddRange(props);
-                        totalProps = (ushort)livingProps.Count;
+                        
+                        _allHunters.Clear();
+                        _allProps.Clear();
+                        _livingHunters.Clear();
+                        _livingProps.Clear();
+
+                        _allHunters = players.GetRange(0, halfCount);
+                        _allProps = players.GetRange(halfCount, players.Count - halfCount);
+                        
+                        _livingHunters.AddRange(_allHunters);
+                        _livingProps.AddRange(_allProps);
 
                         sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt,
                             new SetPlayingPropHuntFromServerToClientData
@@ -189,7 +214,7 @@ namespace PropHunt.HKMP
                                 Playing = true,
                                 GracePeriod = packetData.GracePeriod,
                                 RoundTime = packetData.RoundTime,
-                            }, hunters.Select(hunter => hunter.Id).ToArray());
+                            }, _allHunters.Select(hunter => hunter.Id).ToArray());
 
                         sender.SendSingleData(FromServerToClientPackets.SetPlayingPropHunt,
                             new SetPlayingPropHuntFromServerToClientData
@@ -199,11 +224,12 @@ namespace PropHunt.HKMP
                                 Playing = true,
                                 GracePeriod = packetData.GracePeriod,
                                 RoundTime = packetData.RoundTime,
-                            }, props.Select(prop => prop.Id).ToArray());
+                            }, _allProps.Select(prop => prop.Id).ToArray());
 
                         roundTimer.Interval = packetData.RoundTime * 1000;
                         roundTimer.Start();
                         dueTimeRound = DateTime.Now.AddMilliseconds(roundTimer.Interval);
+                        dueTimeGrace = DateTime.Now.AddSeconds(packetData.GracePeriod);
 
                         intervalTimer.Start();
                     }
@@ -228,14 +254,14 @@ namespace PropHunt.HKMP
                 FromClientToServerPackets.PlayerDeath,
                 (id, _) =>
                 {
-                    var deadProp = livingProps.FirstOrDefault(prop => prop.Id == id);
-                    var deadHunter = livingHunters.FirstOrDefault(hunter => hunter.Id == id);
+                    var deadProp = _livingProps.FirstOrDefault(prop => prop.Id == id);
+                    var deadHunter = _livingHunters.FirstOrDefault(hunter => hunter.Id == id);
 
                     if (deadProp != null)
                     {
-                        livingProps.Remove(deadProp);
+                        _livingProps.Remove(deadProp);
 
-                        if (livingProps.Count <= 0)
+                        if (_livingProps.Count <= 0)
                         {
                             roundTimer.Stop();
                             intervalTimer.Stop();
@@ -251,9 +277,9 @@ namespace PropHunt.HKMP
                     }
                     else if (deadHunter != null)
                     {
-                        livingHunters.Remove(deadHunter);
+                        _livingHunters.Remove(deadHunter);
 
-                        if (livingHunters.Count <= 0)
+                        if (_livingHunters.Count <= 0)
                         {
                             roundTimer.Stop();
                             intervalTimer.Stop();
@@ -267,20 +293,52 @@ namespace PropHunt.HKMP
                             return;
                         }
                     }
-
+                    
                     sender.BroadcastSingleData(
                         FromServerToClientPackets.PlayerDeath,
                         new PlayerDeathFromServerToClientData
                         {
                             PlayerId = id,
-                            HuntersRemaining = (ushort)livingHunters.Count,
-                            HuntersTotal = totalHunters,
-                            PropsRemaining = (ushort)livingProps.Count,
-                            PropsTotal = totalProps,
+                            HuntersRemaining = (ushort)_livingHunters.Count,
+                            HuntersTotal = _totalHunters,
+                            PropsRemaining = (ushort)_livingProps.Count,
+                            PropsTotal = _totalProps,
                         }
                     );
                 }
             );
+
+            serverApi.ServerManager.PlayerConnectEvent += player =>
+            {
+                PropHuntTeam team;
+                if (_livingHunters.Count > _livingProps.Count)
+                {
+                    team = PropHuntTeam.Props;
+                    _allHunters.Add(player);
+                    _livingProps.Add(player);
+                }
+                else if (_livingProps.Count > _livingHunters.Count)
+                {
+                    team = PropHuntTeam.Hunters;
+                    _allProps.Add(player);
+                    _livingHunters.Add(player);
+                }
+                else
+                {
+                    var teamChoices = new[] { PropHuntTeam.Hunters, PropHuntTeam.Props };
+                    team = teamChoices[Random.Range(0, 2)];
+                }
+
+                sender.SendSingleData(
+                    FromServerToClientPackets.SetPlayingPropHunt,
+                    new SetPlayingPropHuntFromServerToClientData
+                    {
+                        Playing = _roundStarted,
+                        PropHuntTeam = (byte)team,
+                        GracePeriod = (int)(dueTimeGrace - DateTime.Now).TotalSeconds,
+                        RoundTime = (int)(dueTimeRound - DateTime.Now).TotalSeconds,
+                    });
+            };
         }
     }
 }
