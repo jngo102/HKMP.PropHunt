@@ -5,9 +5,9 @@ namespace PropHunt.HKMP
 {
     internal class PropHuntCommand : IClientCommand
     {
-        public string Trigger { get; } = "prophunt";
+        public string Trigger => "prophunt";
 
-        public string[] Aliases { get; } = new[]
+        public string[] Aliases { get; } =
         {
             "PropHunt",  "/PropHunt",  @"\PropHunt",
             "prophunt",  "/prophunt",  @"\prophunt", 
@@ -24,15 +24,15 @@ namespace PropHunt.HKMP
             var propHuntInstance = PropHuntClientAddon.Instance;
             var sender = propHuntInstance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(propHuntInstance);
 
-            float gracePeriodArg = 15;
-            float roundTime = 120;
+            int gracePeriodArg = 15;
+            int roundTime = 120;
             if (arguments.Length > 3)
             {
-                roundTime = float.Parse(arguments[3]);
+                roundTime = int.Parse(arguments[3]);
             }
             if (arguments.Length > 2)
             {
-                gracePeriodArg = float.Parse(arguments[2]);
+                gracePeriodArg = int.Parse(arguments[2]);
             }
 
             if (_activateCommands.Contains(arguments[1].ToLower()))

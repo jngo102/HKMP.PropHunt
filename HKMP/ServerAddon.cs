@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Timers;
+using UnityEngine;
 using Random = UnityEngine.Random;
 
 namespace PropHunt.HKMP
@@ -26,11 +27,15 @@ namespace PropHunt.HKMP
         // A collection of all currently alive players on the Props team
         private List<IServerPlayer> _livingProps = new();
         // The total number of hunters playing
-        private ushort _totalHunters => (ushort)_allHunters.Count;
+        private ushort TotalHunters => (ushort)_allHunters.Count;
         // The total number of props playing
-        private ushort _totalProps => (ushort)_allProps.Count;
+        private ushort TotalProps => (ushort)_allProps.Count;
+        // The number of hunters that are alive
+        private ushort HuntersAlive => (ushort)_livingHunters.Count;
+        // The number of props that are alive
+        private ushort PropsAlive => (ushort)_livingProps.Count;
         // Whether a round has started
-        private bool _roundStarted = false;
+        private bool _roundStarted;
 
         public override void Initialize(IServerApi serverApi)
         {
@@ -71,7 +76,7 @@ namespace PropHunt.HKMP
 
                 sender.BroadcastSingleData(FromServerToClientPackets.EndRound, new EndRoundFromServerToClientData
                 {
-                    HuntersWin = _livingProps.Count <= 0,
+                    HuntersWin = PropsAlive <= 0,
                 });
             };
 
@@ -84,15 +89,15 @@ namespace PropHunt.HKMP
                         TimeRemaining = (int)(dueTimeRound - DateTime.Now).TotalSeconds,
                     }
                 );
-
+                
                 var graceTimeRemaining = (dueTimeGrace - DateTime.Now).TotalSeconds;
-                if (graceTimeRemaining > 0)
+                if (graceTimeRemaining >= 0)
                 {
                     sender.BroadcastSingleData(
                         FromServerToClientPackets.UpdateGraceTimer, 
                         new UpdateGraceTimerFromServerToClientData
                         {
-                            TimeRemaining = (int)graceTimeRemaining,
+                            TimeRemaining = (int)(dueTimeGrace - DateTime.Now).TotalSeconds,
                         }
                     );
                 }
@@ -261,7 +266,7 @@ namespace PropHunt.HKMP
                     {
                         _livingProps.Remove(deadProp);
 
-                        if (_livingProps.Count <= 0)
+                        if (PropsAlive <= 0)
                         {
                             roundTimer.Stop();
                             intervalTimer.Stop();
@@ -279,7 +284,7 @@ namespace PropHunt.HKMP
                     {
                         _livingHunters.Remove(deadHunter);
 
-                        if (_livingHunters.Count <= 0)
+                        if (HuntersAlive <= 0)
                         {
                             roundTimer.Stop();
                             intervalTimer.Stop();
@@ -299,10 +304,10 @@ namespace PropHunt.HKMP
                         new PlayerDeathFromServerToClientData
                         {
                             PlayerId = id,
-                            HuntersRemaining = (ushort)_livingHunters.Count,
-                            HuntersTotal = _totalHunters,
-                            PropsRemaining = (ushort)_livingProps.Count,
-                            PropsTotal = _totalProps,
+                            HuntersRemaining = HuntersAlive,
+                            HuntersTotal = TotalHunters,
+                            PropsRemaining = PropsAlive,
+                            PropsTotal = TotalProps,
                         }
                     );
                 }
@@ -311,13 +316,13 @@ namespace PropHunt.HKMP
             serverApi.ServerManager.PlayerConnectEvent += player =>
             {
                 PropHuntTeam team;
-                if (_livingHunters.Count > _livingProps.Count)
+                if (HuntersAlive > PropsAlive)
                 {
                     team = PropHuntTeam.Props;
                     _allHunters.Add(player);
                     _livingProps.Add(player);
                 }
-                else if (_livingProps.Count > _livingHunters.Count)
+                else if (PropsAlive > HuntersAlive)
                 {
                     team = PropHuntTeam.Hunters;
                     _allProps.Add(player);

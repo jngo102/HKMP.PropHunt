@@ -21,7 +21,7 @@ namespace PropHunt.UI
             };
 
             graceTimer.transform.SetParent(transform.Find("Geo Counter"));
-            graceTimer.transform.localPosition = new Vector2(-9, 4.85f);
+            graceTimer.transform.localPosition = new Vector3(-9, 4.85f, 40);
             graceTimer.transform.localScale = Vector3.one * 0.1527f;
             _graceTextMesh = graceTimer.AddComponent<TextMeshPro>();
             _graceTextMesh.font = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
@@ -29,6 +29,9 @@ namespace PropHunt.UI
             _graceTextMesh.fontSize = 35;
             _graceTextMesh.text = "";
             _graceTextMesh.enableWordWrapping = false;
+            var renderer = _graceTextMesh.renderer;
+            renderer.sortingLayerName = "HUD";
+            renderer.sortingOrder = 11;
 
             var roundTimer = new GameObject("Round Timer")
             {
@@ -36,7 +39,7 @@ namespace PropHunt.UI
             };
 
             roundTimer.transform.SetParent(transform.Find("Geo Counter"));
-            roundTimer.transform.localPosition = new Vector2(-9, 5.5f);
+            roundTimer.transform.localPosition = new Vector3(-9, 5.5f, 40);
             roundTimer.transform.localScale = Vector3.one * 0.1527f;
             _roundTextMesh = roundTimer.AddComponent<TextMeshPro>();
             _roundTextMesh.font = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
@@ -44,6 +47,9 @@ namespace PropHunt.UI
             _roundTextMesh.fontSize = 35;
             _roundTextMesh.text = "";
             _roundTextMesh.enableWordWrapping = false;
+            renderer = _roundTextMesh.renderer;
+            renderer.sortingLayerName = "HUD";
+            renderer.sortingOrder = 11;
 
             var msg = new GameObject("Prop Hunt Message")
             {
@@ -51,7 +57,7 @@ namespace PropHunt.UI
             };
 
             msg.transform.SetParent(transform.Find("Geo Counter"));
-            msg.transform.localPosition = new Vector2(-9, 4.2f);
+            msg.transform.localPosition = new Vector3(-9, 4.2f, 40);
             msg.transform.localScale = Vector3.one * 0.1527f;
             _msgTextMesh = msg.AddComponent<TextMeshPro>();
             _msgTextMesh.font = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
@@ -59,6 +65,9 @@ namespace PropHunt.UI
             _msgTextMesh.fontSize = 35;
             _msgTextMesh.text = "";
             _msgTextMesh.enableWordWrapping = false;
+            renderer = _msgTextMesh.renderer;
+            renderer.sortingLayerName = "HUD";
+            renderer.sortingOrder = 11;
         }
 
         /// <summary>
@@ -69,6 +78,14 @@ namespace PropHunt.UI
         {
             if (seconds <= 0)
             {
+                var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
+                blanker.LocateMyFSM("Blanker Control").SendEvent("FADE OUT INSTANT");
+
+                var hc = HeroController.instance;
+                hc.AcceptInput();
+                hc.RegainControl();
+                InputHandler.Instance.inputActions.quickMap.Enabled = true;
+
                 _graceTextMesh.text = "";
                 return;
             }

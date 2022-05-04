@@ -117,8 +117,8 @@ namespace PropHunt.HKMP
         public ushort PlayerId { get; set; }
         public bool Playing { get; set; }
         public byte PropHuntTeam { get; set; }
-        public float GracePeriod { get; set; }
-        public float RoundTime { get; set; }
+        public int GracePeriod { get; set; }
+        public int RoundTime { get; set; }
 
         public void ReadData(IPacket packet)
         {
@@ -127,8 +127,8 @@ namespace PropHunt.HKMP
             if (Playing)
             {
                 PropHuntTeam = packet.ReadByte();
-                GracePeriod = packet.ReadFloat();
-                RoundTime = packet.ReadFloat();
+                GracePeriod = packet.ReadInt();
+                RoundTime = packet.ReadInt();
             }
         }
 
@@ -351,16 +351,16 @@ namespace PropHunt.HKMP
         public bool DropReliableDataIfNewerExists => false;
 
         public bool Playing { get; set; }
-        public float GracePeriod { get; set; }
-        public float RoundTime { get; set; }
+        public int GracePeriod { get; set; }
+        public int RoundTime { get; set; }
 
         public void ReadData(IPacket packet)
         {
             Playing = packet.ReadBool();
             if (Playing)
             {
-                GracePeriod = packet.ReadFloat();
-                RoundTime = packet.ReadFloat();
+                GracePeriod = packet.ReadInt();
+                RoundTime = packet.ReadInt();
             }
         }
 

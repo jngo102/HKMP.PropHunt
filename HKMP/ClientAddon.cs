@@ -250,7 +250,7 @@ namespace PropHunt.HKMP
                     }
                 }
             );
-
+                
             clientApi.CommandManager.RegisterCommand(new PropHuntCommand());
             
             clientApi.ClientManager.ConnectEvent += () => InitComponents();
