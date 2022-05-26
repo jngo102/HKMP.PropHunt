@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Timers;
-using UnityEngine;
-using Random = UnityEngine.Random;
+
+using Random = System.Random;
 
 namespace PropHunt.HKMP
 {
@@ -331,7 +331,8 @@ namespace PropHunt.HKMP
                 else
                 {
                     var teamChoices = new[] { PropHuntTeam.Hunters, PropHuntTeam.Props };
-                    team = teamChoices[Random.Range(0, 2)];
+                    var rand = new Random();
+                    team = teamChoices[rand.Next(0, 2)];
                 }
 
                 sender.SendSingleData(

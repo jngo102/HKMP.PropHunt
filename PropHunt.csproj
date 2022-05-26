@@ -7,8 +7,8 @@
 		<AssemblyTitle>PropHunt</AssemblyTitle>
 		<Product>PropHunt</Product>
 		<Description>HKMP Prop Hunt add-on.</Description>
-		<Copyright>Copyright © </Copyright>
-		<AssemblyVersion>0.0.0.3</AssemblyVersion>
+		<Copyright>Copyright © jngo102</Copyright>
+		<AssemblyVersion>0.0.0.4</AssemblyVersion>
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
@@ -348,5 +348,6 @@
 	<ItemGroup>
 		<None Include=".gitignore" />
 		<None Include="ReadMe.md" />
+		<EmbeddedResource Include="Assets/prophunt" />
 	</ItemGroup>
 </Project>

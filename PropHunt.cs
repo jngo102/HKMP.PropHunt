@@ -6,19 +6,23 @@ using PropHunt.Input;
 using PropHunt.UI;
 using Satchel.BetterMenus;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using UnityEngine;
+using UObject = UnityEngine.Object;
 
 namespace PropHunt
 {
     internal class PropHunt : Mod, IGlobalSettings<GlobalSettings>, ICustomMenuMod
     {
         internal static PropHunt Instance { get; private set; }
-
+        
         private PropHuntClientAddon _clientAddon;
         private PropHuntServerAddon _serverAddon;
 
         private Menu _menu;
+
+        public Dictionary<string, Sprite> PropIcons { get; private set; } = new();
 
         public GlobalSettings Settings { get; private set; } = new();
 
@@ -28,9 +32,11 @@ namespace PropHunt
 
         public override string GetVersion() => Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
-        public override void Initialize(Dictionary<string, Dictionary<string, GameObject>> preloadedObjects)
+        public override void Initialize()
         {
             Instance ??= this;
+
+            LoadAssets();
 
             _clientAddon = new PropHuntClientAddon();
             _serverAddon = new PropHuntServerAddon();
@@ -63,8 +69,9 @@ namespace PropHunt
                     PropInputHandler.Instance.InputActions.TranslateZ,
                     PropInputHandler.Instance.InputActions.TranslateZ
                 ),
-                new KeyBind(
+                Blueprints.KeyAndButtonBind(
                     "Rotate Prop",
+                    PropInputHandler.Instance.InputActions.Rotate,
                     PropInputHandler.Instance.InputActions.Rotate
                 ),
                 Blueprints.KeyAndButtonBind(
@@ -78,5 +85,29 @@ namespace PropHunt
         }
 
         public bool ToggleButtonInsideMenu { get; }
+
+        private void LoadAssets()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            foreach (string resourceName in assembly.GetManifestResourceNames())
+            {
+                if (!resourceName.Contains("prophunt")) continue;
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (stream == null) continue;
+
+                    var bundle = AssetBundle.LoadFromStream(stream);
+
+                    foreach (var icon in bundle.LoadAllAssets<Texture2D>())
+                    {
+                        var iconSprite = Sprite.Create(icon, new Rect(0, 0, icon.width, icon.height), Vector2.one * 0.5f);
+                        UObject.DontDestroyOnLoad(iconSprite);
+                        PropIcons.Add(icon.name, iconSprite);
+                    }
+
+                    stream.Dispose();
+                }
+            }
+        }
     }
 }

@@ -52,6 +52,7 @@ namespace PropHunt.Behaviors
         private IClientAddonNetworkSender<FromClientToServerPackets> _sender;
         private SpriteRenderer _propSprite;
         public Sprite PropSprite => _propSprite.sprite;
+        private SpriteRenderer _iconRenderer;
         private PropState _propState = PropState.Free;
 
         private void Awake()
@@ -63,10 +64,18 @@ namespace PropHunt.Behaviors
             _meshRend = GetComponent<MeshRenderer>();
             _pd = PlayerData.instance;
             _username = transform.Find("Username").gameObject;  
+            
             Prop = new GameObject("Prop");
             Prop.transform.SetParent(transform);
             Prop.transform.localPosition = Vector3.zero;
             _propSprite = Prop.AddComponent<SpriteRenderer>();
+
+            var icon = new GameObject("Prop Icon");
+            icon.transform.SetParent(Prop.transform);
+            icon.transform.localPosition = Vector3.zero;
+            _iconRenderer = icon.AddComponent<SpriteRenderer>();
+            _iconRenderer.sortingOrder = 100;
+
             _sender = PropHuntClientAddon.Instance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(PropHuntClientAddon.Instance);
 
             _origColSize = _col.size;
@@ -149,7 +158,7 @@ namespace PropHunt.Behaviors
         {
             orig(self, go, damageSide, damageAmount, hazardType);
 
-            _propState = PropState.Free;
+            SetPropStateFree();
         }
 
         /// <summary>
@@ -194,12 +203,13 @@ namespace PropHunt.Behaviors
                         _propState = PropState.TranslateXY;
                         _hc.IgnoreInput();
                         _hc.RelinquishControl();
+                        _iconRenderer.transform.rotation = Quaternion.identity;
+                        _iconRenderer.flipX = false;
+                        _iconRenderer.sprite = PropHunt.Instance.PropIcons["TranslateXY"];
                     }
                     else
                     {
-                        _propState = PropState.Free;
-                        _hc.AcceptInput();
-                        _hc.RegainControl();
+                        SetPropStateFree();
                     }
                 }
 
@@ -211,12 +221,13 @@ namespace PropHunt.Behaviors
                         _propState = PropState.TranslateZ;
                         _hc.IgnoreInput();
                         _hc.RelinquishControl();
+                        _iconRenderer.transform.rotation = Quaternion.identity;
+                        _iconRenderer.flipX = false;
+                        _iconRenderer.sprite = PropHunt.Instance.PropIcons["TranslateZ"];
                     }
                     else
                     {
-                        _propState = PropState.Free;
-                        _hc.AcceptInput();
-                        _hc.RegainControl();
+                        SetPropStateFree();
                     }
                 }
 
@@ -228,12 +239,13 @@ namespace PropHunt.Behaviors
                         _propState = PropState.Rotate;
                         _hc.IgnoreInput();
                         _hc.RelinquishControl();
+                        _iconRenderer.transform.rotation = Quaternion.identity;
+                        _iconRenderer.flipX = false;
+                        _iconRenderer.sprite = PropHunt.Instance.PropIcons["Rotate"];
                     }
                     else
                     {
-                        _propState = PropState.Free;
-                        _hc.AcceptInput();
-                        _hc.RegainControl();
+                        SetPropStateFree();
                     }
                 }
 
@@ -245,12 +257,13 @@ namespace PropHunt.Behaviors
                         _propState = PropState.Scale;
                         _hc.IgnoreInput();
                         _hc.RelinquishControl();
+                        _iconRenderer.transform.rotation = Quaternion.identity;
+                        _iconRenderer.flipX = false;
+                        _iconRenderer.sprite = PropHunt.Instance.PropIcons["ScaleUp"];
                     }
                     else
                     {
-                        _propState = PropState.Free;
-                        _hc.AcceptInput();
-                        _hc.RegainControl();
+                        SetPropStateFree();
                     }
                 }
             }
@@ -356,7 +369,15 @@ namespace PropHunt.Behaviors
                     break;
                 case PropState.Rotate:
                     inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0 ? _heroInput.moveVector.Value.y : _heroInput.moveVector.Value.x;
-                    var rotateZ = inputValue * Time.deltaTime * ROTATE_SPEED;
+                    float rotateZ = inputValue * Time.deltaTime * ROTATE_SPEED;
+                    if (rotateZ > 0)
+                    {
+                        _iconRenderer.flipX = true;
+                    }
+                    else if (rotateZ < 0)
+                    {
+                        _iconRenderer.flipX = false;
+                    }
                     Prop.transform.Rotate(0, 0, rotateZ);
                     _sender.SendSingleData
                     (
@@ -369,6 +390,15 @@ namespace PropHunt.Behaviors
                     break;
                 case PropState.Scale:
                     inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0 ? _heroInput.moveVector.Value.y : _heroInput.moveVector.Value.x;
+                    _iconRenderer.flipX = false;
+                    if (inputValue > 0)
+                    {
+                        _iconRenderer.sprite = PropHunt.Instance.PropIcons["ScaleUp"];
+                    }
+                    else if (inputValue < 0)
+                    {
+                        _iconRenderer.sprite = PropHunt.Instance.PropIcons["ScaleDown"];
+                    }
                     var scaleFactor = Prop.transform.localScale.x + inputValue * Time.deltaTime * SCALE_SPEED;
                     scaleFactor = Mathf.Clamp(scaleFactor, MIN_SCALE, MAX_SCALE);
                     Prop.transform.localScale = Vector3.one * scaleFactor;
@@ -398,6 +428,7 @@ namespace PropHunt.Behaviors
 
             _propState = PropState.Free;
             _propSprite.sprite = null;
+            _iconRenderer.sprite = null;
             _meshRend.enabled = true;
             _hc.AcceptInput();
             _hc.RegainControl();
@@ -412,6 +443,17 @@ namespace PropHunt.Behaviors
                     SpriteName = string.Empty,
                 }
             );
+        }
+
+        /// <summary>
+        /// Set the prop state to free.
+        /// </summary>
+        private void SetPropStateFree()
+        {
+            _propState = PropState.Free;
+            _hc.AcceptInput();
+            _hc.RegainControl();
+            _iconRenderer.sprite = null;
         }
     }
 }

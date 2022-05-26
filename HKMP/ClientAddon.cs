@@ -5,12 +5,11 @@ using Hkmp.Networking.Packet.Data;
 using Modding;
 using PropHunt.Behaviors;
 using PropHunt.UI;
-using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
-using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using HKMPVector2 = Hkmp.Math.Vector2;
+using USceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace PropHunt.HKMP
 {
@@ -124,6 +123,8 @@ namespace PropHunt.HKMP
                         PlayerData.instance.isInvincible = false;
 
                         var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+
+                        USceneManager.LoadScene(USceneManager.GetActiveScene().name, LoadSceneMode.Single);
 
                         if (packetData.PropHuntTeam == (byte)PropHuntTeam.Hunters)
                         {
