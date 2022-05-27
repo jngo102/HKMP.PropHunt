@@ -42,7 +42,10 @@ namespace PropHunt.Behaviors
             }
 
             _meshRend.enabled = false;
-            _username.SetActive(false);
+            if (!HeroController.instance.GetComponent<LocalPropManager>().enabled)
+            {
+                _username.SetActive(false);
+            }
         }
     }
 }

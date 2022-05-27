@@ -1,5 +1,6 @@
 ﻿using Hkmp.Api.Client;
 using Hkmp.Api.Server;
+using InControl;
 using Modding;
 using PropHunt.HKMP;
 using PropHunt.Input;
@@ -26,6 +27,8 @@ namespace PropHunt
 
         public GlobalSettings Settings { get; private set; } = new();
 
+        private PropActions _inputActions;
+
         public PropHunt() : base("Prop Hunt")
         {
         }
@@ -44,40 +47,57 @@ namespace PropHunt
             ClientAddon.RegisterAddon(_clientAddon);
             ServerAddon.RegisterAddon(_serverAddon);
 
-            GameManager.instance.gameObject.AddComponent<PropInputHandler>();
+            var inputHandler = GameManager.instance.gameObject.AddComponent<PropInputHandler>();
+            _inputActions = inputHandler.InputActions;
+
             GameCameras.instance.hudCanvas.AddComponent<UIPropHunt>();
         }
 
         public void OnLoadGlobal(GlobalSettings s) => Settings = s;
-        public GlobalSettings OnSaveGlobal() => Settings;
+        public GlobalSettings OnSaveGlobal()
+        {
+            // Save input settings
+            Settings.SelectKey = (int)_inputActions.GetPlayerActionByName("Select").GetKeyOrMouseBinding().Key;
+            Settings.TranslateXYKey = (int)_inputActions.GetPlayerActionByName("Translate XY").GetKeyOrMouseBinding().Key;
+            Settings.TranslateZKey = (int)_inputActions.GetPlayerActionByName("Translate Z").GetKeyOrMouseBinding().Key;
+            Settings.RotateKey = (int)_inputActions.GetPlayerActionByName("Rotate").GetKeyOrMouseBinding().Key;
+            Settings.ScaleKey = (int)_inputActions.GetPlayerActionByName("Scale").GetKeyOrMouseBinding().Key;
+            Settings.SelectButton = (int)_inputActions.GetPlayerActionByName("Select").GetControllerButtonBinding();
+            Settings.TranslateXYButton = (int)_inputActions.GetPlayerActionByName("Translate XY").GetControllerButtonBinding();
+            Settings.TranslateZButton = (int)_inputActions.GetPlayerActionByName("Translate Z").GetControllerButtonBinding();
+            Settings.RotateButton = (int)_inputActions.GetPlayerActionByName("Rotate").GetControllerButtonBinding();
+            Settings.ScaleButton = (int)_inputActions.GetPlayerActionByName("Scale").GetControllerButtonBinding();
+
+            return Settings;
+        }
 
         public MenuScreen GetMenuScreen(MenuScreen modListMenu, ModToggleDelegates? toggleDelegates)
         {
             _menu ??= new Menu("Prop Hunt", new Element[] {
                 Blueprints.KeyAndButtonBind(
                     "Select Prop",
-                    PropInputHandler.Instance.InputActions.Select,
-                    PropInputHandler.Instance.InputActions.Select
+                    _inputActions.Select,
+                    _inputActions.Select
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Move Prop Around",
-                    PropInputHandler.Instance.InputActions.TranslateXY,
-                    PropInputHandler.Instance.InputActions.TranslateXY
+                    _inputActions.TranslateXY,
+                    _inputActions.TranslateXY
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Move Prop In/Out",
-                    PropInputHandler.Instance.InputActions.TranslateZ,
-                    PropInputHandler.Instance.InputActions.TranslateZ
+                    _inputActions.TranslateZ,
+                    _inputActions.TranslateZ
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Rotate Prop",
-                    PropInputHandler.Instance.InputActions.Rotate,
-                    PropInputHandler.Instance.InputActions.Rotate
+                    _inputActions.Rotate,
+                    _inputActions.Rotate
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Grow/Shrink Prop",
-                    PropInputHandler.Instance.InputActions.Scale,
-                    PropInputHandler.Instance.InputActions.Scale
+                    _inputActions.Scale,
+                    _inputActions.Scale
                 ),
             });
 

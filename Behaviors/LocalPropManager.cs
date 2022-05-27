@@ -4,6 +4,7 @@ using PropHunt.Input;
 using PropHunt.Util;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using GlobalEnums;
 using UnityEngine;
 
@@ -55,6 +56,8 @@ namespace PropHunt.Behaviors
         private SpriteRenderer _iconRenderer;
         private PropState _propState = PropState.Free;
 
+        private GameObject _console;
+
         private void Awake()
         {
             _col = GetComponent<BoxCollider2D>();
@@ -63,8 +66,8 @@ namespace PropHunt.Behaviors
             _propInput = PropInputHandler.Instance.InputActions;
             _meshRend = GetComponent<MeshRenderer>();
             _pd = PlayerData.instance;
-            _username = transform.Find("Username").gameObject;  
-            
+            _username = transform.Find("Username").gameObject;
+
             Prop = new GameObject("Prop");
             Prop.transform.SetParent(transform);
             Prop.transform.localPosition = Vector3.zero;
@@ -82,6 +85,9 @@ namespace PropHunt.Behaviors
             _origHealth = _pd.health;
             _origMaxHealth = _pd.maxHealth;
             _origMaxHealthBase = _pd.maxHealthBase;
+
+            var hkmpUiRoot = FindObjectsOfType<GameObject>().FirstOrDefault(go => go.name == "New Game Object" && go.transform.childCount > 30 && go.transform.childCount < 300);
+            _console = hkmpUiRoot.transform.GetChild(14).gameObject;
         }
 
         private IEnumerator Start()
@@ -110,11 +116,11 @@ namespace PropHunt.Behaviors
             _pd.maxHealth = 1;
             _pd.maxHealthBase = 1;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
-            
-            On.GameManager.HazardRespawn            += OnHazardRespawn;
-            On.HeroController.EnterScene            += OnEnterScene;
+
+            On.GameManager.HazardRespawn += OnHazardRespawn;
+            On.HeroController.EnterScene += OnEnterScene;
             On.HeroController.FinishedEnteringScene += OnFinishEnteringScene;
-            On.HeroController.TakeDamage            += OnTakeDamage;
+            On.HeroController.TakeDamage += OnTakeDamage;
         }
 
         private void OnDisable()
@@ -126,11 +132,11 @@ namespace PropHunt.Behaviors
             _pd.maxHealth = _origMaxHealth;
             _pd.maxHealthBase = _origMaxHealthBase;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
-            
-            On.GameManager.HazardRespawn            -= OnHazardRespawn;
-            On.HeroController.EnterScene            -= OnEnterScene;
+
+            On.GameManager.HazardRespawn -= OnHazardRespawn;
+            On.HeroController.EnterScene -= OnEnterScene;
             On.HeroController.FinishedEnteringScene -= OnFinishEnteringScene;
-            On.HeroController.TakeDamage            -= OnTakeDamage;
+            On.HeroController.TakeDamage -= OnTakeDamage;
         }
 
         private void OnHazardRespawn(On.GameManager.orig_HazardRespawn orig, GameManager self)
@@ -169,20 +175,20 @@ namespace PropHunt.Behaviors
         {
             if (enable)
             {
-                On.HeroController.CanCast       -= RemoveCast;
-                On.HeroController.CanDreamNail  -= RemoveDreamNail;
-                On.HeroController.CanFocus      -= RemoveFocus;
+                On.HeroController.CanCast -= RemoveCast;
+                On.HeroController.CanDreamNail -= RemoveDreamNail;
+                On.HeroController.CanFocus -= RemoveFocus;
                 On.HeroController.CanNailCharge -= RemoveNailCharge;
             }
             else
             {
-                On.HeroController.CanCast       += RemoveCast;
-                On.HeroController.CanDreamNail  += RemoveDreamNail;
-                On.HeroController.CanFocus      += RemoveFocus;
+                On.HeroController.CanCast += RemoveCast;
+                On.HeroController.CanDreamNail += RemoveDreamNail;
+                On.HeroController.CanFocus += RemoveFocus;
                 On.HeroController.CanNailCharge += RemoveNailCharge;
             }
         }
-        
+
         private bool RemoveCast(On.HeroController.orig_CanCast orig, HeroController self) => false;
         private bool RemoveDreamNail(On.HeroController.orig_CanDreamNail orig, HeroController self) => false;
         private bool RemoveFocus(On.HeroController.orig_CanFocus orig, HeroController self) => false;
@@ -193,6 +199,8 @@ namespace PropHunt.Behaviors
         /// </summary>
         private void ReadPropStateInputs()
         {
+            if (_console.activeSelf || GameManager.instance.IsGamePaused()) return;
+
             if (PropSprite != null)
             {
                 if (_propInput.TranslateXY.WasPressed)
@@ -281,9 +289,9 @@ namespace PropHunt.Behaviors
                     closestBreakable = breakable;
                 }
             }
-            
+
             _propState = PropState.Free;
-            
+
             string spriteName = "";
             var breakSprite = closestBreakable?.GetComponentInChildren<SpriteRenderer>().sprite;
             var breakCol = closestBreakable?.GetComponentInChildren<BoxCollider2D>();
@@ -318,7 +326,7 @@ namespace PropHunt.Behaviors
             {
                 ClearProp();
             }
-            
+
             _sender.SendSingleData
             (
                 FromClientToServerPackets.BroadcastPropSprite,
@@ -434,6 +442,8 @@ namespace PropHunt.Behaviors
             _hc.RegainControl();
 
             _username.SetActive(true);
+
+            if (!PropHuntClientAddon.Instance.PropHuntClientAddonApi.NetClient.IsConnected) return;
 
             _sender.SendSingleData
             (

@@ -168,7 +168,7 @@ namespace PropHunt.HKMP
                         clientApi.ClientManager.ChangeTeam(Team.None);
 
                         hunter.enabled = false;
-                        propManager.enabled = false;
+                        propManager.enabled = true;
                         var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
                         ui.SetTimeRemainingInRound(0);
                         ui.SetGraceTimeRemaining(0);
@@ -257,9 +257,8 @@ namespace PropHunt.HKMP
             clientApi.ClientManager.ConnectEvent += () => InitComponents();
             clientApi.ClientManager.DisconnectEvent += () =>
             {
-                sender.SendSingleData(
-                    FromClientToServerPackets.PlayerDeath,
-                    new ReliableEmptyData());
+                HeroController.instance.GetComponent<Hunter>().enabled = false;
+                HeroController.instance.GetComponent<LocalPropManager>().enabled = false;
             };
 
             clientApi.ClientManager.PlayerConnectEvent += player =>
@@ -394,7 +393,7 @@ namespace PropHunt.HKMP
 
             var propManager = HeroController.instance.GetComponent<LocalPropManager>();
             propManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
-            propManager.enabled = false;
+            propManager.enabled = true;
         }
     }
 }
