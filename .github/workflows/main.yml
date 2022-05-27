@@ -26,7 +26,8 @@ jobs:
       - name: Fetch Debug dependency
         run: |
           mkdir References/DebugMod
-          wget https://github.com/TheMulhima/HollowKnight.DebugMod/releases/latest/download/DebugMod.zip -O References/DebugMod/DebugMod.dll
+          wget https://github.com/TheMulhima/HollowKnight.DebugMod/releases/latest/download/DebugMod.zip -O DebugMod.zip
+          unzip -O DebugMod.zip -d References/DebugMod
           
       - name: Fetch HKMP dependency
         run: |
