@@ -238,6 +238,39 @@ namespace PropHunt.HKMP
         }
     }
 
+    internal class PlayerLeftGameFromServerToClientData : IPacketData
+    {
+        public bool IsReliable => true;
+        public bool DropReliableDataIfNewerExists => true;
+
+        public ushort PlayerId { get; set; }
+        public string Username { get; set; }
+        public ushort HuntersRemaining { get; set; }
+        public ushort HuntersTotal { get; set; }
+        public ushort PropsRemaining { get; set; }
+        public ushort PropsTotal { get; set; }
+
+        public void ReadData(IPacket packet)
+        {
+            PlayerId = packet.ReadUShort();
+            Username = packet.ReadString();
+            HuntersRemaining = packet.ReadUShort();
+            HuntersTotal = packet.ReadUShort();
+            PropsRemaining = packet.ReadUShort();
+            PropsTotal = packet.ReadUShort();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(PlayerId);
+            packet.Write(Username);
+            packet.Write(HuntersRemaining);
+            packet.Write(HuntersTotal);
+            packet.Write(PropsRemaining);
+            packet.Write(PropsTotal);
+        }
+    }
+
     public enum FromServerToClientPackets
     {
         SendPropSprite,
@@ -250,6 +283,7 @@ namespace PropHunt.HKMP
         UpdateGraceTimer,
         EndRound,
         PlayerDeath,
+        PlayerLeftGame,
     }
 
     #endregion

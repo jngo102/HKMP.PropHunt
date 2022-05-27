@@ -23,6 +23,11 @@ jobs:
           wget https://github.com/hk-modding/api/releases/latest/download/ModdingApiWin.zip -O API.zip
           unzip -o API.zip -d References
 
+      - name: Fetch Debug dependency
+        run: |
+          mkdir References/DebugMod
+          wget https://github.com/TheMulhima/HollowKnight.DebugMod/releases/latest/download/DebugMod.zip -O References/DebugMod/DebugMod.dll
+          
       - name: Fetch HKMP dependency
         run: |
           mkdir References/HKMP
@@ -51,17 +56,13 @@ jobs:
         id: get_version
         run: echo "::set-output name=version::$(cat < Version.txt)"
 
-      - name: Get date format for release tag
-        id: get_date
-        run: echo "::set-output name=today::$(date +'%d.%m.%Y')"
-
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.get_date.outputs.today }}
+          tag_name: ${{ steps.get_version.outputs.version }}
           release_name: Prop Hunt Release v${{ steps.get_version.outputs.version }}
           body: "SHA256: ${{ steps.get_hash.outputs.hash }}"
           draft: false

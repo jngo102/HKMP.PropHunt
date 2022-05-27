@@ -42,6 +42,7 @@ namespace PropHunt.Behaviors
 
         private readonly List<PlayMakerFSM> _healthDisplays = new();
 
+        private HeroAnimationController _anim;
         private BoxCollider2D _col;
         private HeroController _hc;
         private HeroActions _heroInput;
@@ -60,10 +61,11 @@ namespace PropHunt.Behaviors
 
         private void Awake()
         {
+            _anim = GetComponent<HeroAnimationController>();
             _col = GetComponent<BoxCollider2D>();
             _hc = GetComponent<HeroController>();
             _heroInput = GameManager.instance.inputHandler.inputActions;
-            _propInput = PropInputHandler.Instance.InputActions;
+            _propInput = PropHunt.Instance.Settings.Bindings;
             _meshRend = GetComponent<MeshRenderer>();
             _pd = PlayerData.instance;
             _username = transform.Find("Username").gameObject;
@@ -112,6 +114,8 @@ namespace PropHunt.Behaviors
         {
             EnableInput(false);
 
+            _anim.enabled = false;
+
             _pd.health = 1;
             _pd.maxHealth = 1;
             _pd.maxHealthBase = 1;
@@ -127,6 +131,8 @@ namespace PropHunt.Behaviors
         {
             ClearProp();
             EnableInput(true);
+
+            _anim.enabled = true;
 
             _pd.health = _origHealth;
             _pd.maxHealth = _origMaxHealth;
@@ -203,7 +209,7 @@ namespace PropHunt.Behaviors
 
             if (PropSprite != null)
             {
-                if (_propInput.TranslateXY.WasPressed)
+                if (_propInput.TranslateXYWasPressed())
                 {
                     if (_propState != PropState.TranslateXY)
                     {
@@ -221,7 +227,7 @@ namespace PropHunt.Behaviors
                     }
                 }
 
-                if (_propInput.TranslateZ.WasPressed)
+                if (_propInput.TranslateZWasPressed())
                 {
                     if (_propState != PropState.TranslateZ)
                     {
@@ -239,7 +245,7 @@ namespace PropHunt.Behaviors
                     }
                 }
 
-                if (_propInput.Rotate.WasPressed)
+                if (_propInput.RotateWasPressed())
                 {
                     if (_propState != PropState.Rotate)
                     {
@@ -257,7 +263,7 @@ namespace PropHunt.Behaviors
                     }
                 }
 
-                if (_propInput.Scale.WasPressed)
+                if (_propInput.ScaleWasPressed())
                 {
                     if (_propState != PropState.Scale)
                     {
@@ -276,7 +282,7 @@ namespace PropHunt.Behaviors
                 }
             }
 
-            if (!_propInput.Select.WasPressed) return;
+            if (!_propInput.SelectWasPressed()) return;
 
             float shortestDistance = SHORTEST_DISTANCE;
             Breakable closestBreakable = null;

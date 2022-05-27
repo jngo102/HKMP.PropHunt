@@ -5,6 +5,7 @@ using Hkmp.Networking.Packet.Data;
 using Modding;
 using PropHunt.Behaviors;
 using PropHunt.UI;
+using Satchel;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -39,6 +40,7 @@ namespace PropHunt.HKMP
                     FromServerToClientPackets.SendPropScale => new PropScaleFromServerToClientData(),
                     FromServerToClientPackets.SetPlayingPropHunt => new SetPlayingPropHuntFromServerToClientData(),
                     FromServerToClientPackets.PlayerDeath => new PlayerDeathFromServerToClientData(),
+                    FromServerToClientPackets.PlayerLeftGame => new PlayerLeftGameFromServerToClientData(),
                     FromServerToClientPackets.UpdateRoundTimer => new UpdateRoundTimerFromServerToClientData(),
                     FromServerToClientPackets.UpdateGraceTimer => new UpdateGraceTimerFromServerToClientData(),
                     FromServerToClientPackets.EndRound => new EndRoundFromServerToClientData(),
@@ -56,8 +58,7 @@ namespace PropHunt.HKMP
                         ? null
                         : Resources.FindObjectsOfTypeAll<Sprite>()
                             .FirstOrDefault(sprite => sprite.name == packetData.SpriteName);
-                    var propManager = player.PlayerObject.GetComponent<RemotePropManager>();
-                    propManager ??= player.PlayerObject.AddComponent<RemotePropManager>();
+                    var propManager = player.PlayerObject.GetAddComponent<RemotePropManager>();
                     propManager.SetPropSprite(propSprite);
                 }
             );
@@ -158,6 +159,12 @@ namespace PropHunt.HKMP
                     else
                     {
                         ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
+                        
+                        HeroController.instance.GetComponentInChildren<Renderer>().material.color = Color.white;
+                        foreach (var player in clientApi.ClientManager.Players)
+                        {
+                            player.PlayerObject.GetComponentInChildren<Renderer>().material.color = Color.white;
+                        }
 
                         var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
                         var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
@@ -185,9 +192,25 @@ namespace PropHunt.HKMP
                 {
                     var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
 
+                    player.PlayerObject.GetComponentInChildren<Renderer>().material.color = new Color(1, 1, 1, 0.25f);
+
                     PropHunt.Instance.Log($"Player {player.Username} has died.");
                     
                     string text = $"Player {player.Username} has died!" +
+                                  $"\nProps remaining: {packetData.PropsRemaining}/{packetData.PropsTotal}" +
+                                  $"\nHunters remaining: {packetData.HuntersRemaining}/{packetData.HuntersTotal}";
+
+                    GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetPropHuntMessage(text);
+                }
+            );
+
+            receiver.RegisterPacketHandler<PlayerLeftGameFromServerToClientData>(
+                FromServerToClientPackets.PlayerLeftGame,
+                packetData =>
+                {
+                    PropHunt.Instance.Log($"Player {packetData.Username} has left the game.");
+
+                    string text = $"Player {packetData.Username} has left the game." +
                                   $"\nProps remaining: {packetData.PropsRemaining}/{packetData.PropsTotal}" +
                                   $"\nHunters remaining: {packetData.HuntersRemaining}/{packetData.HuntersTotal}";
 
@@ -224,6 +247,12 @@ namespace PropHunt.HKMP
                 {
                     ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
 
+                    HeroController.instance.GetComponentInChildren<Renderer>().material.color = Color.white;
+                    foreach (var player in clientApi.ClientManager.Players)
+                    {
+                        player.PlayerObject.GetComponentInChildren<Renderer>().material.color = Color.white;
+                    }
+
                     var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
                     var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
                     blankerCtrl.SendEvent("FADE OUT INSTANT");
@@ -235,6 +264,8 @@ namespace PropHunt.HKMP
                     InitComponents();
 
                     var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+                    ui.SetTimeRemainingInRound(0);
+                    ui.SetGraceTimeRemaining(0);
 
                     On.Breakable.Break -= OnBreakableBreak;
 
@@ -259,12 +290,15 @@ namespace PropHunt.HKMP
             {
                 HeroController.instance.GetComponent<Hunter>().enabled = false;
                 HeroController.instance.GetComponent<LocalPropManager>().enabled = false;
+                
+                var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+                ui.SetGraceTimeRemaining(0);
+                ui.SetTimeRemainingInRound(0);
             };
 
             clientApi.ClientManager.PlayerConnectEvent += player =>
             {
-                var localPropManager = HeroController.instance.GetComponent<LocalPropManager>();
-                localPropManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
+                var localPropManager = HeroController.instance.gameObject.GetAddComponent<LocalPropManager>();
 
                 if (!localPropManager.enabled) return;
 
@@ -318,8 +352,7 @@ namespace PropHunt.HKMP
             };
             clientApi.ClientManager.PlayerEnterSceneEvent += player =>
             {
-                var heroPropManager = HeroController.instance.GetComponent<LocalPropManager>();
-                heroPropManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
+                var heroPropManager = HeroController.instance.gameObject.GetAddComponent<LocalPropManager>();
 
                 if (heroPropManager.PropSprite == null) return;
                 
@@ -369,6 +402,16 @@ namespace PropHunt.HKMP
 
         private void OnPlayerDeath()
         {
+            HeroController.instance.GetComponentInChildren<Renderer>().material.color = new Color(1, 1, 1, 0.25f);
+            if (!ReflectionHelper.GetField<DebugMod.DebugMod, bool>("noclip"))
+            {
+                DebugMod.BindableFunctions.ToggleNoclip();
+            }
+            if (!ReflectionHelper.GetField<DebugMod.DebugMod, bool>("playerInvincible"))
+            {
+                DebugMod.BindableFunctions.ToggleInvincibility();
+            }
+
             var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
             sender.SendSingleData(
                 FromClientToServerPackets.PlayerDeath,
@@ -387,12 +430,10 @@ namespace PropHunt.HKMP
         /// </summary>
         private void InitComponents()
         {
-            var hunter = HeroController.instance.GetComponent<Hunter>();
-            hunter ??= HeroController.instance.gameObject.AddComponent<Hunter>();
+            var hunter = HeroController.instance.gameObject.GetAddComponent<Hunter>();
             hunter.enabled = false;
 
-            var propManager = HeroController.instance.GetComponent<LocalPropManager>();
-            propManager ??= HeroController.instance.gameObject.AddComponent<LocalPropManager>();
+            var propManager = HeroController.instance.gameObject.GetAddComponent<LocalPropManager>();
             propManager.enabled = true;
         }
     }

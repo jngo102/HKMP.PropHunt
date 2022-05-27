@@ -1,9 +1,7 @@
 ﻿using Hkmp.Api.Client;
 using Hkmp.Api.Server;
-using InControl;
 using Modding;
 using PropHunt.HKMP;
-using PropHunt.Input;
 using PropHunt.UI;
 using Satchel.BetterMenus;
 using System.Collections.Generic;
@@ -27,8 +25,6 @@ namespace PropHunt
 
         public GlobalSettings Settings { get; private set; } = new();
 
-        private PropActions _inputActions;
-
         public PropHunt() : base("Prop Hunt")
         {
         }
@@ -47,57 +43,39 @@ namespace PropHunt
             ClientAddon.RegisterAddon(_clientAddon);
             ServerAddon.RegisterAddon(_serverAddon);
 
-            var inputHandler = GameManager.instance.gameObject.AddComponent<PropInputHandler>();
-            _inputActions = inputHandler.InputActions;
-
             GameCameras.instance.hudCanvas.AddComponent<UIPropHunt>();
         }
 
         public void OnLoadGlobal(GlobalSettings s) => Settings = s;
-        public GlobalSettings OnSaveGlobal()
-        {
-            // Save input settings
-            Settings.SelectKey = (int)_inputActions.GetPlayerActionByName("Select").GetKeyOrMouseBinding().Key;
-            Settings.TranslateXYKey = (int)_inputActions.GetPlayerActionByName("Translate XY").GetKeyOrMouseBinding().Key;
-            Settings.TranslateZKey = (int)_inputActions.GetPlayerActionByName("Translate Z").GetKeyOrMouseBinding().Key;
-            Settings.RotateKey = (int)_inputActions.GetPlayerActionByName("Rotate").GetKeyOrMouseBinding().Key;
-            Settings.ScaleKey = (int)_inputActions.GetPlayerActionByName("Scale").GetKeyOrMouseBinding().Key;
-            Settings.SelectButton = (int)_inputActions.GetPlayerActionByName("Select").GetControllerButtonBinding();
-            Settings.TranslateXYButton = (int)_inputActions.GetPlayerActionByName("Translate XY").GetControllerButtonBinding();
-            Settings.TranslateZButton = (int)_inputActions.GetPlayerActionByName("Translate Z").GetControllerButtonBinding();
-            Settings.RotateButton = (int)_inputActions.GetPlayerActionByName("Rotate").GetControllerButtonBinding();
-            Settings.ScaleButton = (int)_inputActions.GetPlayerActionByName("Scale").GetControllerButtonBinding();
-
-            return Settings;
-        }
+        public GlobalSettings OnSaveGlobal() => Settings;
 
         public MenuScreen GetMenuScreen(MenuScreen modListMenu, ModToggleDelegates? toggleDelegates)
         {
             _menu ??= new Menu("Prop Hunt", new Element[] {
                 Blueprints.KeyAndButtonBind(
                     "Select Prop",
-                    _inputActions.Select,
-                    _inputActions.Select
+                    Settings.Bindings.SelectKey,
+                    Settings.Bindings.SelectButton
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Move Prop Around",
-                    _inputActions.TranslateXY,
-                    _inputActions.TranslateXY
+                    Settings.Bindings.TranslateXYKey,
+                    Settings.Bindings.TranslateXYButton
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Move Prop In/Out",
-                    _inputActions.TranslateZ,
-                    _inputActions.TranslateZ
+                    Settings.Bindings.TranslateZKey,
+                    Settings.Bindings.TranslateZButton
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Rotate Prop",
-                    _inputActions.Rotate,
-                    _inputActions.Rotate
+                    Settings.Bindings.RotateKey,
+                    Settings.Bindings.RotateButton
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Grow/Shrink Prop",
-                    _inputActions.Scale,
-                    _inputActions.Scale
+                    Settings.Bindings.ScaleKey,
+                    Settings.Bindings.ScaleButton
                 ),
             });
 

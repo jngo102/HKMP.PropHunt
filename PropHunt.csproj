@@ -12,7 +12,7 @@
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
 		<DebugSymbols>true</DebugSymbols>
 		<DebugType>full</DebugType>
 		<Optimize>false</Optimize>
@@ -29,7 +29,7 @@
 		<!-- The folder that exports will be generated in -->
 		<ExportDir>Output</ExportDir>
 	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
 		<DebugType>pdbonly</DebugType>
 		<Optimize>true</Optimize>
 		<OutputPath>bin\Release\</OutputPath>
@@ -112,6 +112,9 @@
 		</Reference>
 		<Reference Include="UnityEngine.UIModule">
 			<HintPath>$(LocalRefs)/UnityEngine.UIModule.dll</HintPath>
+		</Reference>
+		<Reference Include="DebugMod">
+			<HintPath>$(ModsPath1)/DebugMod/DebugMod.dll</HintPath>
 		</Reference>
 		<Reference Include="HKMP">
 			<HintPath>$(ModsPath1)/HKMP/HKMP.dll</HintPath>
