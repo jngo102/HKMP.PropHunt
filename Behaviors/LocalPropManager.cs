@@ -1,11 +1,12 @@
+using GlobalEnums;
 using Hkmp.Api.Client.Networking;
 using PropHunt.HKMP;
 using PropHunt.Input;
 using PropHunt.Util;
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using GlobalEnums;
+using System.Reflection;
 using UnityEngine;
 
 using HKMPVector2 = Hkmp.Math.Vector2;
@@ -57,7 +58,8 @@ namespace PropHunt.Behaviors
         private SpriteRenderer _iconRenderer;
         private PropState _propState = PropState.Free;
 
-        private GameObject _console;
+        private object _chatBox;
+        private Type _chatBoxType;
 
         private void Awake()
         {
@@ -88,8 +90,9 @@ namespace PropHunt.Behaviors
             _origMaxHealth = _pd.maxHealth;
             _origMaxHealthBase = _pd.maxHealthBase;
 
-            var hkmpUiRoot = FindObjectsOfType<GameObject>().FirstOrDefault(go => go.name == "New Game Object" && go.transform.childCount > 30 && go.transform.childCount < 300);
-            _console = hkmpUiRoot.transform.GetChild(14).gameObject;
+            var hkmpAssembly = AppDomain.CurrentDomain.GetAssemblyByName("HKMP");
+            _chatBoxType = hkmpAssembly.GetType("Hkmp.Ui.Chat.ChatBox");
+            _chatBox = Convert.ChangeType(PropHuntClientAddon.Instance.PropHuntClientAddonApi.UiManager.ChatBox, _chatBoxType);
         }
 
         private IEnumerator Start()
@@ -205,7 +208,10 @@ namespace PropHunt.Behaviors
         /// </summary>
         private void ReadPropStateInputs()
         {
-            if (_console.activeSelf || GameManager.instance.IsGamePaused()) return;
+            var chatBoxOpen = _chatBoxType.GetField("_isOpen", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(_chatBox) as bool?;
+            
+            if ((chatBoxOpen.HasValue && chatBoxOpen.Value) ||
+                GameManager.instance.IsGamePaused()) return;
 
             if (PropSprite != null)
             {

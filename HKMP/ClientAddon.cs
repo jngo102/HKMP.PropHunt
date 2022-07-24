@@ -3,9 +3,9 @@ using Hkmp.Api.Client;
 using Hkmp.Game;
 using Hkmp.Networking.Packet.Data;
 using Modding;
+using Modding.Utils;
 using PropHunt.Behaviors;
 using PropHunt.UI;
-using Satchel;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -58,7 +58,7 @@ namespace PropHunt.HKMP
                         ? null
                         : Resources.FindObjectsOfTypeAll<Sprite>()
                             .FirstOrDefault(sprite => sprite.name == packetData.SpriteName);
-                    var propManager = player.PlayerObject.GetAddComponent<RemotePropManager>();
+                    var propManager = player.PlayerObject.GetOrAddComponent<RemotePropManager>();
                     propManager.SetPropSprite(propSprite);
                 }
             );
@@ -285,7 +285,7 @@ namespace PropHunt.HKMP
 
             clientApi.ClientManager.PlayerConnectEvent += player =>
             {
-                var localPropManager = HeroController.instance.gameObject.GetAddComponent<LocalPropManager>();
+                var localPropManager = HeroController.instance.gameObject.GetOrAddComponent<LocalPropManager>();
 
                 if (!localPropManager.enabled) return;
 
@@ -340,7 +340,7 @@ namespace PropHunt.HKMP
             
             clientApi.ClientManager.PlayerEnterSceneEvent += player =>
             {
-                var heroPropManager = HeroController.instance.gameObject.GetAddComponent<LocalPropManager>();
+                var heroPropManager = HeroController.instance.gameObject.GetOrAddComponent<LocalPropManager>();
 
                 if (heroPropManager.PropSprite == null) return;
                 
@@ -413,10 +413,10 @@ namespace PropHunt.HKMP
         /// </summary>
         private void InitComponents()
         {
-            var hunter = HeroController.instance.gameObject.GetAddComponent<Hunter>();
+            var hunter = HeroController.instance.gameObject.GetOrAddComponent<Hunter>();
             hunter.enabled = false;
 
-            var propManager = HeroController.instance.gameObject.GetAddComponent<LocalPropManager>();
+            var propManager = HeroController.instance.gameObject.GetOrAddComponent<LocalPropManager>();
             propManager.enabled = true;
         }
     }

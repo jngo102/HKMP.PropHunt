@@ -33,6 +33,7 @@ namespace PropHunt.Behaviors
             _pd.maxHealthBase = 10;
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
 
+            HeroController.instance.StartAnimationControl();
             On.HeroController.CanFocus += RemoveFocus;
         }
 
