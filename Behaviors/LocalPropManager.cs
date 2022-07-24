@@ -20,7 +20,7 @@ namespace PropHunt.Behaviors
 
         private const float TRANSLATE_XY_SPEED = 1f;
         private const float TRANSLATE_Z_SPEED = 1f;
-        private const float ROTATE_SPEED = 20f;
+        private const float ROTATE_SPEED = 35f;
         private const float SCALE_SPEED = 0.5f;
 
         private const float XY_MAX_MAGNITUDE = 0.65f;
@@ -32,8 +32,8 @@ namespace PropHunt.Behaviors
         private const int PROP_HEALTH_MIN = 2;
         private const int PROP_HEALTH_MAX = 11;
 
-        private const float LARGEST_SPRITE_AREA = 25;
-        private const float SMALLEST_SPRITE_AREA = 0;
+        private const float LARGEST_SPRITE_AREA = 25f;
+        private const float SMALLEST_SPRITE_AREA = 0f;
 
         private Vector2 _origColSize;
         private int _origHealth;

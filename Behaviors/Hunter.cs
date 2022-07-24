@@ -44,7 +44,8 @@ namespace PropHunt.Behaviors
         /// <param name="graceTime">The amount of time to wait in seconds</param>
         public void BeginGracePeriod(int graceTime)
         {
-            var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
+            var hudCam = GameCameras.instance.hudCamera;
+            var blanker = hudCam.transform.Find("2dtk Blanker").gameObject;
             blanker.LocateMyFSM("Blanker Control").SendEvent("FADE IN INSTANT");
 
             var hc = GetComponent<HeroController>();

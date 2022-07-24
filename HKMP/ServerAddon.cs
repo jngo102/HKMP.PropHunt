@@ -276,11 +276,13 @@ namespace PropHunt.HKMP
                     if (!_roundStarted) return;
 
                     var deadProp = _livingProps.FirstOrDefault(prop => prop.Id == id);
-                    var deadHunter = _livingHunters.FirstOrDefault(hunter => hunter.Id == id);
-
+                    
                     if (deadProp != null)
                     {
+                        Console.WriteLine("Dead prop");
                         _livingProps.Remove(deadProp);
+                        _allHunters.Add(deadProp);
+                        _livingHunters.Add(deadProp);
 
                         if (PropsAlive <= 0)
                         {
@@ -296,27 +298,22 @@ namespace PropHunt.HKMP
                             );
                             return;
                         }
-                    }
-                    else if (deadHunter != null)
-                    {
-                        _livingHunters.Remove(deadHunter);
-
-                        if (HuntersAlive <= 0)
+                        else
                         {
-                            _roundStarted = false;
-                            roundTimer.Stop();
-                            intervalTimer.Stop();
-                            sender.BroadcastSingleData(
-                                FromServerToClientPackets.EndRound,
-                                new EndRoundFromServerToClientData
+                            sender.SendSingleData(
+                                FromServerToClientPackets.SetPlayingPropHunt,
+                                new SetPlayingPropHuntFromServerToClientData
                                 {
-                                    HuntersWin = false,
-                                }
-                            );
+                                    GracePeriod = 0,
+                                    PlayerId = id,
+                                    Playing = true,
+                                    PropHuntTeam = (byte)PropHuntTeam.Hunters,
+                                }, id);
+
                             return;
                         }
                     }
-
+                    
                     sender.BroadcastSingleData(
                         FromServerToClientPackets.PlayerDeath,
                         new PlayerDeathFromServerToClientData
@@ -333,8 +330,6 @@ namespace PropHunt.HKMP
 
             serverApi.ServerManager.PlayerConnectEvent += player =>
             {
-                if (!_roundStarted) return;
-
                 PropHuntTeam team;
                 if (HuntersAlive > PropsAlive)
                 {

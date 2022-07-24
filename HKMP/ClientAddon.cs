@@ -131,9 +131,11 @@ namespace PropHunt.HKMP
                         {
                             clientApi.ClientManager.ChangeTeam(Team.Grimm);
 
-                            hunter.enabled = true;
-                            hunter.BeginGracePeriod(packetData.GracePeriod);
                             propManager.enabled = false;
+                            hunter.enabled = true;
+                            var graceTime = packetData.GracePeriod;
+                            hunter.BeginGracePeriod(graceTime);
+                            ui.SetGraceTimeRemaining(graceTime);
 
                             PropHunt.Instance.Log("You are a HUNTER");
                             ui.SetPropHuntMessage("You are a hunter!");
@@ -159,12 +161,6 @@ namespace PropHunt.HKMP
                     else
                     {
                         ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
-                        
-                        HeroController.instance.GetComponentInChildren<Renderer>().material.color = Color.white;
-                        foreach (var player in clientApi.ClientManager.Players)
-                        {
-                            player.PlayerObject.GetComponentInChildren<Renderer>().material.color = Color.white;
-                        }
 
                         var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
                         var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
@@ -191,9 +187,6 @@ namespace PropHunt.HKMP
                 packetData =>
                 {
                     var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
-
-                    player.PlayerObject.GetComponentInChildren<Renderer>().material.color = new Color(1, 1, 1, 0.25f);
-
                     PropHunt.Instance.Log($"Player {player.Username} has died.");
                     
                     string text = $"Player {player.Username} has died!" +
@@ -246,12 +239,6 @@ namespace PropHunt.HKMP
                 packetData =>
                 {
                     ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
-
-                    HeroController.instance.GetComponentInChildren<Renderer>().material.color = Color.white;
-                    foreach (var player in clientApi.ClientManager.Players)
-                    {
-                        player.PlayerObject.GetComponentInChildren<Renderer>().material.color = Color.white;
-                    }
 
                     var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
                     var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
@@ -350,6 +337,7 @@ namespace PropHunt.HKMP
                     }
                 );
             };
+            
             clientApi.ClientManager.PlayerEnterSceneEvent += player =>
             {
                 var heroPropManager = HeroController.instance.gameObject.GetAddComponent<LocalPropManager>();
@@ -402,16 +390,11 @@ namespace PropHunt.HKMP
 
         private void OnPlayerDeath()
         {
-            HeroController.instance.GetComponentInChildren<Renderer>().material.color = new Color(1, 1, 1, 0.25f);
-            if (!ReflectionHelper.GetField<DebugMod.DebugMod, bool>("noclip"))
+            var localPropManager = HeroController.instance.GetComponent<LocalPropManager>();
+            if (localPropManager.enabled)
             {
-                DebugMod.BindableFunctions.ToggleNoclip();
+                PropHuntClientAddonApi.ClientManager.ChangeTeam(Team.Grimm);
             }
-            if (!ReflectionHelper.GetField<DebugMod.DebugMod, bool>("playerInvincible"))
-            {
-                DebugMod.BindableFunctions.ToggleInvincibility();
-            }
-
             var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
             sender.SendSingleData(
                 FromClientToServerPackets.PlayerDeath,

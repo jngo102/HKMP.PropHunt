@@ -23,12 +23,6 @@ jobs:
           wget https://github.com/hk-modding/api/releases/latest/download/ModdingApiWin.zip -O API.zip
           unzip -o API.zip -d References
 
-      - name: Fetch Debug dependency
-        run: |
-          mkdir References/DebugMod
-          wget https://github.com/TheMulhima/HollowKnight.DebugMod/releases/latest/download/DebugMod.zip -O DebugMod.zip
-          unzip -o DebugMod.zip -d References/DebugMod
-          
       - name: Fetch HKMP dependency
         run: |
           mkdir References/HKMP

@@ -15,7 +15,7 @@ namespace PropHunt
     internal class PropHunt : Mod, IGlobalSettings<GlobalSettings>, ICustomMenuMod
     {
         internal static PropHunt Instance { get; private set; }
-        
+
         private PropHuntClientAddon _clientAddon;
         private PropHuntServerAddon _serverAddon;
 
@@ -83,7 +83,7 @@ namespace PropHunt
         }
 
         public bool ToggleButtonInsideMenu { get; }
-
+    
         private void LoadAssets()
         {
             var assembly = Assembly.GetExecutingAssembly();

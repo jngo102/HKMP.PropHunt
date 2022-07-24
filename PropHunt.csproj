@@ -48,8 +48,7 @@
 		<MakeDir Directories="$(ExportDir)" />
 		<MakeDir Directories="$(ExportDir)/zip" />
 		<Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ExportDir)" />
-		<Copy Condition="'$(DocumentationFile)' != ''" SourceFiles="ReadMe.md;$(TargetPath);$(TargetDir)/$(TargetName).pdb;$(TargetDir)/$(TargetName).xml" DestinationFolder="$(ExportDir)/zip" />
-		<Copy Condition="'$(DocumentationFile)' == ''" SourceFiles="ReadMe.md;$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ExportDir)/zip/" />
+		<Copy SourceFiles="ReadMe.md;$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ExportDir)/zip/" />
 		<ZipDirectory SourceDirectory="$(ExportDir)/zip" DestinationFile="$(ExportDir)/$(TargetName).zip" />
 		<RemoveDir Directories="$(ExportDir)/zip" />
 		<PropertyGroup>
@@ -64,6 +63,8 @@
 		<RemoveDir Condition="Exists('$(ModsPath2)/$(TargetName)')" Directories="$(ModsPath2)/$(TargetName)" />
 		<MakeDir Directories="$(ModsPath2)/$(TargetName)" />
 		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath2)/$(TargetName)" />
+		<Copy SourceFiles="$(TargetPath)" DestinationFolder="C:\Users\Jason\OneDrive\" />
+		<Copy SourceFiles="$(TargetPath)" DestinationFolder="C:\HK\Modding\HollowKnight\HKMP\HKMP\HKMPServer\bin\Debug\net472\" />
 		<!-- Uncomment this if you have the game installed on Steam, Steam is in your PATH environment variable, and you want to run the game upon build. -->
 		<Exec Command="steam steam://rungameid/367520" />
 	</Target>
@@ -112,9 +113,6 @@
 		</Reference>
 		<Reference Include="UnityEngine.UIModule">
 			<HintPath>$(LocalRefs)/UnityEngine.UIModule.dll</HintPath>
-		</Reference>
-		<Reference Include="DebugMod">
-			<HintPath>$(ModsPath1)/DebugMod/DebugMod.dll</HintPath>
 		</Reference>
 		<Reference Include="HKMP">
 			<HintPath>$(ModsPath1)/HKMP/HKMP.dll</HintPath>
