@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 namespace PropHunt.Behaviors
@@ -16,36 +17,51 @@ namespace PropHunt.Behaviors
             _username = transform.parent.Find("Username").gameObject;
             _prop = new GameObject("Prop");
             _prop.transform.SetParent(transform);
-            _prop.transform.localPosition = Vector3.zero;
-            _prop.transform.rotation = Quaternion.identity;
-            _prop.transform.localScale = Vector3.one;
+            ResetPropTransform();
             _propSprite = _prop.AddComponent<SpriteRenderer>();
+            PropHunt.Instance.Log("RemotePropManager Awake");
         }
 
         /// <summary>
-        /// Set the remote player's prop sprite.
+        /// Set the remote player's prop's sprite.
         /// </summary>
-        /// <param name="sprite">The sprite to change to.</param>
-        public void SetPropSprite(Sprite sprite)
+        /// <param name="sprite">The sprite to change to</param>
+        public IEnumerator SetPropSprite(Sprite sprite)
         {
-            _propSprite.sprite = sprite;
+            yield return new WaitUntil(() => _propSprite != null);
             
-            _prop.transform.localPosition = Vector3.zero;
-            _prop.transform.rotation = Quaternion.identity;
-            _prop.transform.localScale = Vector3.one;
+            PropHunt.Instance.Log("Setting prop sprite to " + sprite?.name);
+            PropHunt.Instance.Log("Prop SpriteRenderer null? " + (_propSprite == null));
+            _propSprite.sprite = sprite;
+
+            PropHunt.Instance.Log("Resetting prop transform");
+            ResetPropTransform();
 
             if (sprite == null)
             {
+                PropHunt.Instance.Log("Sprite is null, showing player");
                 _meshRend.enabled = true;
                 _username.SetActive(true);
-                return;
+                yield break;
             }
 
+            PropHunt.Instance.Log("Disabling meshrend");
             _meshRend.enabled = false;
             if (!HeroController.instance.GetComponent<LocalPropManager>().enabled)
             {
+                PropHunt.Instance.Log("Disabling username");
                 _username.SetActive(false);
             }
+        }
+
+        /// <summary>
+        /// Reset the prop's transform to default.
+        /// </summary>
+        private void ResetPropTransform()
+        {
+            _prop.transform.localPosition = Vector3.zero;
+            _prop.transform.rotation = Quaternion.identity;
+            _prop.transform.localScale = Vector3.one;
         }
     }
 }

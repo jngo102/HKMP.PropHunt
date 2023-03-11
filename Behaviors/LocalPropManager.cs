@@ -1,6 +1,6 @@
 using GlobalEnums;
-using Hkmp.Api.Client.Networking;
-using PropHunt.HKMP;
+using HkmpPouch;
+using PropHunt.Events;
 using PropHunt.Input;
 using PropHunt.Util;
 using System;
@@ -8,8 +8,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
-
-using HKMPVector2 = Hkmp.Math.Vector2;
 
 namespace PropHunt.Behaviors
 {
@@ -52,7 +50,7 @@ namespace PropHunt.Behaviors
         private PlayerData _pd;
         private GameObject _username;
         public GameObject Prop { get; private set; }
-        private IClientAddonNetworkSender<FromClientToServerPackets> _sender;
+        private PipeClient _pipe;
         private SpriteRenderer _propSprite;
         public Sprite PropSprite => _propSprite.sprite;
         private SpriteRenderer _iconRenderer;
@@ -83,7 +81,7 @@ namespace PropHunt.Behaviors
             _iconRenderer = icon.AddComponent<SpriteRenderer>();
             _iconRenderer.sortingOrder = 100;
 
-            _sender = PropHuntClientAddon.Instance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(PropHuntClientAddon.Instance);
+            _pipe = PropHunt.PipeClient;
 
             _origColSize = _col.size;
             _origHealth = _pd.health;
@@ -92,12 +90,13 @@ namespace PropHunt.Behaviors
 
             var hkmpAssembly = AppDomain.CurrentDomain.GetAssemblyByName("HKMP");
             _chatBoxType = hkmpAssembly.GetType("Hkmp.Ui.Chat.ChatBox");
-            _chatBox = Convert.ChangeType(PropHuntClientAddon.Instance.PropHuntClientAddonApi.UiManager.ChatBox, _chatBoxType);
+            _chatBox = Convert.ChangeType(PropHunt.PipeClient.ClientApi.UiManager.ChatBox, _chatBoxType);
         }
 
         private IEnumerator Start()
         {
-            yield return new WaitUntil(() => GameCameras.instance.hudCanvas.transform.Find("Health/Health 1").gameObject != null);
+            yield return new WaitUntil(() =>
+                GameCameras.instance.hudCanvas.transform.Find("Health/Health 1").gameObject != null);
 
             var healthParent = GameCameras.instance.hudCanvas.transform.Find("Health");
             for (int healthNum = 1; healthNum <= 11; healthNum++)
@@ -208,8 +207,8 @@ namespace PropHunt.Behaviors
         /// </summary>
         private void ReadPropStateInputs()
         {
-            var chatBoxOpen = _chatBoxType.GetField("_isOpen", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(_chatBox) as bool?;
-            
+            var chatBoxOpen = _chatBoxType.GetField("_isOpen", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(_chatBox) as bool?;
+
             if ((chatBoxOpen.HasValue && chatBoxOpen.Value) ||
                 GameManager.instance.IsGamePaused()) return;
 
@@ -339,14 +338,8 @@ namespace PropHunt.Behaviors
                 ClearProp();
             }
 
-            _sender.SendSingleData
-            (
-                FromClientToServerPackets.BroadcastPropSprite,
-                new PropSpriteFromClientToServerData
-                {
-                    SpriteName = spriteName,
-                }
-            );
+            _pipe.BroadcastInScene(new UpdatePropSpriteEvent { SpriteName = spriteName },
+                GameManager.instance.sceneName, false);
         }
 
         /// <summary>
@@ -363,32 +356,27 @@ namespace PropHunt.Behaviors
                     var clampedVector = Vector2.ClampMagnitude(Prop.transform.localPosition, XY_MAX_MAGNITUDE);
                     var clampedPos = new Vector3(clampedVector.x, clampedVector.y, Prop.transform.localPosition.z);
                     Prop.transform.localPosition = clampedPos;
-                    _sender.SendSingleData
-                    (
-                        FromClientToServerPackets.BroadcastPropPositionXY,
-                        new PropPositionXYFromClientToServerData
-                        {
-                            PositionXY = new HKMPVector2(Prop.transform.localPosition.x, Prop.transform.localPosition.y),
-                        }
-                    );
+                    _pipe.BroadcastInScene(
+                        new UpdatePropPositionXYEvent
+                            { X = Prop.transform.localPosition.x, Y = Prop.transform.localPosition.y },
+                        GameManager.instance.sceneName, false);
                     break;
                 case PropState.TranslateZ:
-                    float inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0 ? _heroInput.moveVector.Value.y : _heroInput.moveVector.Value.x;
+                    float inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0
+                        ? _heroInput.moveVector.Value.y
+                        : _heroInput.moveVector.Value.x;
                     var moveZ = Vector3.forward * inputValue * Time.deltaTime * TRANSLATE_Z_SPEED;
                     Prop.transform.localPosition += moveZ;
-                    clampedPos = new Vector3(Prop.transform.localPosition.x, Prop.transform.localPosition.y, Mathf.Clamp(Prop.transform.localPosition.z, MIN_Z, MAX_Z));
+                    clampedPos = new Vector3(Prop.transform.localPosition.x, Prop.transform.localPosition.y,
+                        Mathf.Clamp(Prop.transform.localPosition.z, MIN_Z, MAX_Z));
                     Prop.transform.localPosition = clampedPos;
-                    _sender.SendSingleData
-                    (
-                        FromClientToServerPackets.BroadcastPropPositionZ,
-                        new PropPositionZFromClientToServerData
-                        {
-                            PositionZ = Prop.transform.localPosition.z,
-                        }
-                    );
+                    _pipe.BroadcastInScene(new UpdatePropPositionZEvent { Z = Prop.transform.localPosition.z },
+                        GameManager.instance.sceneName, false);
                     break;
                 case PropState.Rotate:
-                    inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0 ? _heroInput.moveVector.Value.y : _heroInput.moveVector.Value.x;
+                    inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0
+                        ? _heroInput.moveVector.Value.y
+                        : _heroInput.moveVector.Value.x;
                     float rotateZ = inputValue * Time.deltaTime * ROTATE_SPEED;
                     if (rotateZ > 0)
                     {
@@ -399,17 +387,14 @@ namespace PropHunt.Behaviors
                         _iconRenderer.flipX = false;
                     }
                     Prop.transform.Rotate(0, 0, rotateZ);
-                    _sender.SendSingleData
-                    (
-                        FromClientToServerPackets.BroadcastPropRotation,
-                        new PropRotationFromClientToServerData
-                        {
-                            Rotation = Prop.transform.rotation.eulerAngles.z,
-                        }
-                    );
+                    _pipe.BroadcastInScene(
+                        new UpdatePropRotationEvent { Rotation = Prop.transform.localRotation.eulerAngles.z },
+                        GameManager.instance.sceneName, false);
                     break;
                 case PropState.Scale:
-                    inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0 ? _heroInput.moveVector.Value.y : _heroInput.moveVector.Value.x;
+                    inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0
+                        ? _heroInput.moveVector.Value.y
+                        : _heroInput.moveVector.Value.x;
                     _iconRenderer.flipX = false;
                     if (inputValue > 0)
                     {
@@ -419,17 +404,12 @@ namespace PropHunt.Behaviors
                     {
                         _iconRenderer.sprite = PropHunt.Instance.PropIcons["ScaleDown"];
                     }
+
                     var scaleFactor = Prop.transform.localScale.x + inputValue * Time.deltaTime * SCALE_SPEED;
                     scaleFactor = Mathf.Clamp(scaleFactor, MIN_SCALE, MAX_SCALE);
                     Prop.transform.localScale = Vector3.one * scaleFactor;
-                    _sender.SendSingleData
-                    (
-                        FromClientToServerPackets.BroadcastPropScale,
-                        new PropScaleFromClientToServerData
-                        {
-                            ScaleFactor = Prop.transform.localScale.x,
-                        }
-                    );
+                    _pipe.BroadcastInScene(new UpdatePropScaleEvent { Scale = Prop.transform.localScale.x },
+                        GameManager.instance.sceneName, false);
                     break;
             }
         }
@@ -455,16 +435,9 @@ namespace PropHunt.Behaviors
 
             _username.SetActive(true);
 
-            if (!PropHuntClientAddon.Instance.PropHuntClientAddonApi.NetClient.IsConnected) return;
+            if (!_pipe.ClientApi.NetClient.IsConnected) return;
 
-            _sender.SendSingleData
-            (
-                FromClientToServerPackets.BroadcastPropSprite,
-                new PropSpriteFromClientToServerData
-                {
-                    SpriteName = string.Empty,
-                }
-            );
+            _pipe.Broadcast(new UpdatePropSpriteEvent { SpriteName = string.Empty });
         }
 
         /// <summary>

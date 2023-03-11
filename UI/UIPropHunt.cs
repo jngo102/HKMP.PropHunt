@@ -73,8 +73,8 @@ namespace PropHunt.UI
         /// <summary>
         /// Set the remaining amount of grace time for Hunters showed in this text.
         /// </summary>
-        /// <param name="seconds">The amount of grace time left in seconds.</param>
-        public void SetGraceTimeRemaining(int seconds)
+        /// <param name="seconds">The amount of grace time left in seconds</param>
+        public void SetGraceTimeRemaining(uint seconds)
         {
             if (seconds <= 0)
             {
@@ -98,8 +98,8 @@ namespace PropHunt.UI
         /// <summary>
         /// Set the remaining amount of time in the current round showed in this text.
         /// </summary>
-        /// <param name="seconds">The amount of time left in the round in seconds.</param>
-        public void SetTimeRemainingInRound(int seconds)
+        /// <param name="seconds">The amount of time left in the round in seconds</param>
+        public void SetTimeRemainingInRound(uint seconds)
         {
             if (seconds <= 0)
             {
@@ -115,7 +115,7 @@ namespace PropHunt.UI
         /// <summary>
         /// Set a message for the Prop Hunt message object.
         /// </summary>
-        /// <param name="message">The message to display.</param>
+        /// <param name="message">The message to display</param>
         public void SetPropHuntMessage(string message)
         {
             StartCoroutine(ShowMessageRoutine());

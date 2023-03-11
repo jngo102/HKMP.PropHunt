@@ -1,5 +1,6 @@
 ﻿using Hkmp.Api.Command.Client;
 using System.Linq;
+using PropHunt.Events;
 
 namespace PropHunt.HKMP
 {
@@ -10,7 +11,7 @@ namespace PropHunt.HKMP
         public string[] Aliases { get; } =
         {
             "PropHunt",  "/PropHunt",  @"\PropHunt",
-            "prophunt",  "/prophunt",  @"\prophunt", 
+            "prophunt",  "/prophunt",  @"\prophunt",
             "prop",      "/prop",      @"\prop",
         };
 
@@ -21,35 +22,26 @@ namespace PropHunt.HKMP
 
         public void Execute(string[] arguments)
         {
-            var propHuntInstance = PropHuntClientAddon.Instance;
-            var sender = propHuntInstance.PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(propHuntInstance);
+            var pipe = PropHunt.PipeClient;
 
-            int gracePeriodArg = 15;
-            int roundTime = 120;
+            uint gracePeriod = 15;
+            uint roundTime = 120;
             if (arguments.Length > 3)
             {
-                roundTime = int.Parse(arguments[3]);
+                roundTime = uint.Parse(arguments[3]);
             }
             if (arguments.Length > 2)
             {
-                gracePeriodArg = int.Parse(arguments[2]);
+                gracePeriod = uint.Parse(arguments[2]);
             }
 
             if (_activateCommands.Contains(arguments[1].ToLower()))
             {
-                sender.SendSingleData(FromClientToServerPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromClientToServerData()
-                {
-                    Playing = true,
-                    GracePeriod = gracePeriodArg,
-                    RoundTime = roundTime,
-                });
+                pipe.SendToServer(new StartRoundEvent { GracePeriod = gracePeriod, RoundTime = roundTime });
             }
             else if (_deactivateCommands.Contains(arguments[1].ToLower()))
             {
-                sender.SendSingleData(FromClientToServerPackets.SetPlayingPropHunt, new SetPlayingPropHuntFromClientToServerData()
-                {
-                    Playing = false,
-                });
+                pipe.SendToServer(new EndRoundEvent { HuntersWin = false });
             }
         }
     }

@@ -7,8 +7,8 @@
 		<AssemblyTitle>PropHunt</AssemblyTitle>
 		<Product>PropHunt</Product>
 		<Description>HKMP Prop Hunt add-on.</Description>
-		<Copyright>Copyright © jngo102</Copyright>
-		<AssemblyVersion>0.0.0.8</AssemblyVersion>
+		<Copyright>Copyright © jngo102 2023</Copyright>
+		<AssemblyVersion>0.0.0.9</AssemblyVersion>
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
@@ -20,12 +20,14 @@
 		<DefineConstants>DEBUG;TRACE</DefineConstants>
 		<ErrorReport>prompt</ErrorReport>
 		<WarningLevel>4</WarningLevel>
-		<!-- Path to mods folder of one installation of Hollow Knight -->
-		<ModsPath1>$(MSBuildProgramFiles32)/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed/Mods</ModsPath1>
-		<!-- Path to mods folder of another installation of Hollow Knight -->
-		<ModsPath2>C:/HK/Versions/GOG_1.5/Hollow%20Knight_Data/Managed/Mods</ModsPath2>
 		<!-- Path to DLL references required to build mod -->
 		<LocalRefs>$(MSBuildProgramFiles32)/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed</LocalRefs>
+		<!-- Path to mods folder of one installation of Hollow Knight -->
+		<ModsPath1>$(LocalRefs)/Mods</ModsPath1>
+		<GameDir2>$(MSBuildProgramFiles32)/GOG Galaxy/Games/Hollow Knight</GameDir2>
+		<!-- Path to mods folder of another installation of Hollow Knight -->
+		<ModsPath2>$(GameDir2)/Hollow Knight_Data/Managed/Mods</ModsPath2>
+		<ServerPath>C:\HK\Modding\HollowKnight\HKMP\HKMP\HKMPServer\bin\Debug\net472</ServerPath>
 		<!-- The folder that exports will be generated in -->
 		<ExportDir>Output</ExportDir>
 	</PropertyGroup>
@@ -63,6 +65,9 @@
 		<RemoveDir Condition="Exists('$(ModsPath2)/$(TargetName)')" Directories="$(ModsPath2)/$(TargetName)" />
 		<MakeDir Directories="$(ModsPath2)/$(TargetName)" />
 		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath2)/$(TargetName)" />
+		<RemoveDir Condition="Exists('$(ServerPath)/$(TargetName)')" Directories="$(ServerPath)/$(TargetName)" />
+		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ServerPath)" />
+		<!--<Exec Command="start &quot;$(GameDir2)/Hollow Knight.exe&quot;" />-->
 		<!-- Uncomment this if you have the game installed on Steam, Steam is in your PATH environment variable, and you want to run the game upon build. -->
 		<Exec Command="steam steam://rungameid/367520" />
 	</Target>
@@ -114,6 +119,9 @@
 		</Reference>
 		<Reference Include="HKMP">
 			<HintPath>$(ModsPath1)/HKMP/HKMP.dll</HintPath>
+		</Reference>
+		<Reference Include="HkmpPouch">
+			<HintPath>$(ModsPath1)/HkmpPouch/HkmpPouch.dll</HintPath>
 		</Reference>
 		<Reference Include="Satchel">
 			<HintPath>$(ModsPath1)/Satchel/Satchel.dll</HintPath>

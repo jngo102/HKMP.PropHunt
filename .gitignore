@@ -445,6 +445,7 @@ Desktop.ini
 # Built Visual Studio Code Extensions
 *.vsix
 
+*.sln
 .vscode/
 Output/
 References/

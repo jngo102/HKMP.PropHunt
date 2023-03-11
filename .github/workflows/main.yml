@@ -2,7 +2,7 @@ name: Build and Publish
 
 on:
   push:
-    branches: main
+    branches: [main]
   pull_request:
 
 jobs:
@@ -32,7 +32,12 @@ jobs:
         run: |
           mkdir References/Satchel
           wget https://github.com/PrashantMohta/Satchel/releases/latest/download/Satchel.dll -O References/Satchel/Satchel.dll
-          
+      
+      - name: Fetch HkmpPouch dependency
+        run: |
+          mkdir References/HkmpPouch
+          wget https://github.com/PrashantMohta/HkmpPouch/releases/latest/download/HkmpPouch.dll -O References/HkmpPouch/HkmpPouch.dll
+
       - name: Setup MSBuild
         run: |
           sudo apt-get install -y nuget mono-devel mono-xbuild

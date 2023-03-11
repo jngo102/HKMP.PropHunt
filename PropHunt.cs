@@ -1,4 +1,5 @@
-﻿using Hkmp.Api.Client;
+﻿using System;
+using Hkmp.Api.Client;
 using Hkmp.Api.Server;
 using Modding;
 using PropHunt.HKMP;
@@ -7,6 +8,8 @@ using Satchel.BetterMenus;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using HkmpPouch;
+using Modding.Utils;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
@@ -16,12 +19,13 @@ namespace PropHunt
     {
         internal static PropHunt Instance { get; private set; }
 
-        private PropHuntClientAddon _clientAddon;
-        private PropHuntServerAddon _serverAddon;
+        internal static PipeClient PipeClient;
+        internal static PropHuntClientAddon Client;
+        internal static PropHuntServerAddon Server;
 
         private Menu _menu;
 
-        public Dictionary<string, Sprite> PropIcons { get; private set; } = new();
+        public Dictionary<string, Sprite> PropIcons { get; } = new();
 
         public GlobalSettings Settings { get; private set; } = new();
 
@@ -33,17 +37,44 @@ namespace PropHunt
 
         public override void Initialize()
         {
+            Console.WriteLine(0);
             Instance ??= this;
+            Console.WriteLine(1);
 
             LoadAssets();
+            Console.WriteLine(2);
 
-            _clientAddon = new PropHuntClientAddon();
-            _serverAddon = new PropHuntServerAddon();
+            if (Server == null)
+            {
+                Server = new PropHuntServerAddon();
+                ServerAddon.RegisterAddon(Server);
+            }
+            Console.WriteLine(3);
 
-            ClientAddon.RegisterAddon(_clientAddon);
-            ServerAddon.RegisterAddon(_serverAddon);
+            if (Client == null)
+            {
+                Client = new PropHuntClientAddon();
+                ClientAddon.RegisterAddon(Client);
+            }
 
-            GameCameras.instance.hudCanvas.AddComponent<UIPropHunt>();
+            PipeClient ??= new PipeClient(Name);
+
+            Console.WriteLine(4);
+
+            PipeClient.ServerCounterPartAvailable(serverAddonPresent =>
+            {
+                if (serverAddonPresent)
+                {
+                    
+                }
+            });
+
+            GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
+            Console.WriteLine(5);
+            PipeClient.ClientApi?.CommandManager?.RegisterCommand(new PropHuntCommand());
+            Console.WriteLine("Client still null? " + (PipeClient == null));
+            Console.WriteLine("Client Api null? " + (PipeClient.ClientApi == null));
+            Console.WriteLine("CommandManager null? " + (PipeClient.ClientApi?.CommandManager == null));
         }
 
         public void OnLoadGlobal(GlobalSettings s) => Settings = s;

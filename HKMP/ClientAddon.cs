@@ -1,406 +1,175 @@
 using GlobalEnums;
 using Hkmp.Api.Client;
 using Hkmp.Game;
-using Hkmp.Networking.Packet.Data;
+using HkmpPouch;
 using Modding;
 using Modding.Utils;
 using PropHunt.Behaviors;
+using PropHunt.Events;
 using PropHunt.UI;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using HKMPVector2 = Hkmp.Math.Vector2;
 using USceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace PropHunt.HKMP
 {
     internal class PropHuntClientAddon : ClientAddon
     {
-        protected override string Name => "Prop Hunt";
+        protected override string Name => PropHunt.Instance.Name;
         protected override string Version => PropHunt.Instance.GetVersion();
         public override bool NeedsNetwork => true;
 
+        private PipeClient _pipe;
         public static PropHuntClientAddon Instance { get; private set; }
-        public IClientApi PropHuntClientAddonApi { get; private set; }
 
         public override void Initialize(IClientApi clientApi)
         {
             Instance = this;
-            PropHuntClientAddonApi = clientApi;
+            _pipe = PropHunt.PipeClient;
 
-            var sender = clientApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
-            var receiver = clientApi.NetClient.GetNetworkReceiver<FromServerToClientPackets>(Instance, clientPacket =>
+            _pipe.On(EndRoundEventFactory.Instance).Do<EndRoundEvent>(pipeEvent =>
             {
-                return clientPacket switch
-                {
-                    FromServerToClientPackets.SendPropSprite => new PropSpriteFromServerToClientData(),
-                    FromServerToClientPackets.SendPropPositionXY => new PropPositionXYFromServerToClientData(),
-                    FromServerToClientPackets.SendPropPositionZ => new PropPositionZFromServerToClientData(),
-                    FromServerToClientPackets.SendPropRotation => new PropRotationFromServerToClientData(),
-                    FromServerToClientPackets.SendPropScale => new PropScaleFromServerToClientData(),
-                    FromServerToClientPackets.SetPlayingPropHunt => new SetPlayingPropHuntFromServerToClientData(),
-                    FromServerToClientPackets.PlayerDeath => new PlayerDeathFromServerToClientData(),
-                    FromServerToClientPackets.PlayerLeftGame => new PlayerLeftGameFromServerToClientData(),
-                    FromServerToClientPackets.UpdateRoundTimer => new UpdateRoundTimerFromServerToClientData(),
-                    FromServerToClientPackets.UpdateGraceTimer => new UpdateGraceTimerFromServerToClientData(),
-                    FromServerToClientPackets.EndRound => new EndRoundFromServerToClientData(),
-                    _ => null
-                };
+                RoundEndHandler(pipeEvent.HuntersWin);
             });
 
-            receiver.RegisterPacketHandler<PropSpriteFromServerToClientData>
-            (
-                FromServerToClientPackets.SendPropSprite,
-                packetData =>
-                { 
-                    var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
-                    var propSprite = string.IsNullOrEmpty(packetData.SpriteName)
-                        ? null
-                        : Resources.FindObjectsOfTypeAll<Sprite>()
-                            .FirstOrDefault(sprite => sprite.name == packetData.SpriteName);
-                    var propManager = player.PlayerObject.GetOrAddComponent<RemotePropManager>();
-                    propManager.SetPropSprite(propSprite);
-                }
-            );
+            _pipe.On(PlayerDeathEventFactory.Instance).Do<PlayerDeathEvent>(pipeEvent =>
+            {
+                OnRemotePlayerDeath(pipeEvent.PlayerId, pipeEvent.HuntersRemaining, pipeEvent.HuntersTotal, pipeEvent.PropsRemaining, pipeEvent.PropsTotal);
+            });
 
-            receiver.RegisterPacketHandler<PropPositionXYFromServerToClientData>
-            (
-                FromServerToClientPackets.SendPropPositionXY,
-                packetData => 
-                {
-                    var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
-                    var propTransform = player.PlayerObject.transform.Find("Prop");
-                    var newPos = new Vector3(packetData.PositionXY.X, packetData.PositionXY.Y, propTransform.localPosition.z);
-                    propTransform.localPosition = newPos;
-                }
-            );
+            _pipe.On(AssignTeamEventFactory.Instance).Do<AssignTeamEvent>(pipeEvent =>
+            {
+                AssignTeam(pipeEvent.IsHunter, pipeEvent.InGrace);
+            });
 
-            receiver.RegisterPacketHandler<PropPositionZFromServerToClientData>
-            (
-                FromServerToClientPackets.SendPropPositionZ,
-                packetData =>
-                {
-                    var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
-                    var propTransform = player.PlayerObject.transform.Find("Prop");
-                    var newPos = new Vector3(propTransform.localPosition.x, propTransform.localPosition.y, packetData.PositionZ);
-                    propTransform.localPosition = newPos;
-                }
-            );
+            _pipe.On(UpdateGraceTimeEventFactory.Instance).Do<UpdateGraceTimeEvent>(pipeEvent =>
+            {
+                UpdateGraceTime(pipeEvent.TimeRemaining);
+            });
 
-            receiver.RegisterPacketHandler<PropRotationFromServerToClientData>
-            (
-                FromServerToClientPackets.SendPropRotation,
-                packetData =>
-                {
-                    var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
-                    var propTransform = player.PlayerObject.transform.Find("Prop");
-                    propTransform.rotation = Quaternion.Euler(0, 0, packetData.Rotation);
-                }
-            );
+            _pipe.On(UpdateRoundTimeEventFactory.Instance).Do<UpdateRoundTimeEvent>(pipeEvent =>
+            {
+                UpdateRoundTime(pipeEvent.TimeRemaining);
+            });
 
-            receiver.RegisterPacketHandler<PropScaleFromServerToClientData>
-            (
-                FromServerToClientPackets.SendPropScale,
-                packetData =>
-                {
-                    var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
-                    var propTransform = player.PlayerObject.transform.Find("Prop");
-                    propTransform.localScale = Vector3.one * packetData.ScaleFactor;
-                }
-            );
+            _pipe.On(UpdatePropPositionXYEventFactory.Instance).Do<UpdatePropPositionXYEvent>(pipeEvent =>
+            {
+                UpdateRemotePlayerPropPositionXY(pipeEvent.FromPlayer, pipeEvent.X, pipeEvent.Y);
+            });
 
-            receiver.RegisterPacketHandler<SetPlayingPropHuntFromServerToClientData>
-            (
-                FromServerToClientPackets.SetPlayingPropHunt,
-                packetData =>
-                {
-                    var propManager = HeroController.instance.GetComponent<LocalPropManager>();
-                    var hunter = HeroController.instance.GetComponent<Hunter>();
-                    var playing = packetData.Playing;
-                    if (playing)
-                    {
-                        ModHooks.BeforePlayerDeadHook += OnPlayerDeath;
+            _pipe.On(UpdatePropPositionZEventFactory.Instance).Do<UpdatePropPositionZEvent>(pipeEvent =>
+            {
+                UpdateRemotePlayerPropPositionZ(pipeEvent.FromPlayer, pipeEvent.Z);
+            });
 
-                        PlayerData.instance.isInvincible = false;
+            _pipe.On(UpdatePropRotationEventFactory.Instance).Do<UpdatePropRotationEvent>(pipeEvent =>
+            {
+                UpdateRemotePlayerPropRotation(pipeEvent.FromPlayer, pipeEvent.Rotation);
+            });
 
-                        var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            _pipe.On(UpdatePropScaleEventFactory.Instance).Do<UpdatePropScaleEvent>(pipeEvent =>
+            {
+                UpdateRemotePlayerPropScale(pipeEvent.FromPlayer, pipeEvent.Scale);
+            });
 
-                        USceneManager.LoadScene(USceneManager.GetActiveScene().name, LoadSceneMode.Single);
+            _pipe.On(UpdatePropSpriteEventFactory.Instance).Do<UpdatePropSpriteEvent>(pipeEvent =>
+            {
+                UpdateRemotePlayerPropSprite(pipeEvent.FromPlayer, pipeEvent.SpriteName);
+            });
 
-                        if (packetData.PropHuntTeam == (byte)PropHuntTeam.Hunters)
-                        {
-                            clientApi.ClientManager.ChangeTeam(Team.Grimm);
-
-                            propManager.enabled = false;
-                            hunter.enabled = true;
-                            var graceTime = packetData.GracePeriod;
-                            hunter.BeginGracePeriod(graceTime);
-                            ui.SetGraceTimeRemaining(graceTime);
-
-                            PropHunt.Instance.Log("You are a HUNTER");
-                            ui.SetPropHuntMessage("You are a hunter!");
-
-                            HeroController.instance.SetMPCharge(198);
-                            GameManager.instance.soulOrb_fsm.SendEvent("MP GAIN");
-
-                            On.Breakable.Break += OnBreakableBreak;
-                        }
-                        else if (packetData.PropHuntTeam == (byte)PropHuntTeam.Props)
-                        {
-                            clientApi.ClientManager.ChangeTeam(Team.Moss);
-
-                            hunter.enabled = false;
-                            propManager.enabled = true;
-
-                            PropHunt.Instance.Log("You are a PROP");
-                            ui.SetPropHuntMessage("You are a prop!");
-
-                            On.Breakable.Break -= OnBreakableBreak;
-                        }
-                    }
-                    else
-                    {
-                        ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
-
-                        var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
-                        var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
-                        blankerCtrl.SendEvent("FADE OUT INSTANT");
-
-                        PlayerData.instance.isInvincible = true;
-
-                        clientApi.ClientManager.ChangeTeam(Team.None);
-
-                        hunter.enabled = false;
-                        propManager.enabled = true;
-                        var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
-                        ui.SetTimeRemainingInRound(0);
-                        ui.SetGraceTimeRemaining(0);
-
-                        On.Breakable.Break -= OnBreakableBreak;
-                    }
-                }
-            );
-
-            receiver.RegisterPacketHandler<PlayerDeathFromServerToClientData>
-            (
-                FromServerToClientPackets.PlayerDeath,
-                packetData =>
-                {
-                    var player = clientApi.ClientManager.GetPlayer(packetData.PlayerId);
-                    PropHunt.Instance.Log($"Player {player.Username} has died.");
-                    
-                    string text = $"Player {player.Username} has died!" +
-                                  $"\nProps remaining: {packetData.PropsRemaining}/{packetData.PropsTotal}" +
-                                  $"\nHunters remaining: {packetData.HuntersRemaining}/{packetData.HuntersTotal}";
-
-                    GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetPropHuntMessage(text);
-                }
-            );
-
-            receiver.RegisterPacketHandler<PlayerLeftGameFromServerToClientData>(
-                FromServerToClientPackets.PlayerLeftGame,
-                packetData =>
-                {
-                    PropHunt.Instance.Log($"Player {packetData.Username} has left the game.");
-
-                    string text = $"Player {packetData.Username} has left the game." +
-                                  $"\nProps remaining: {packetData.PropsRemaining}/{packetData.PropsTotal}" +
-                                  $"\nHunters remaining: {packetData.HuntersRemaining}/{packetData.HuntersTotal}";
-
-                    GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetPropHuntMessage(text);
-                }
-            );
-
-            receiver.RegisterPacketHandler<UpdateRoundTimerFromServerToClientData>
-            (
-                FromServerToClientPackets.UpdateRoundTimer,
-                packetData =>
-                {
-                    int timeRemaining = packetData.TimeRemaining;
-                    PropHunt.Instance.Log("Seconds remaining in round: " + timeRemaining);
-                    GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetTimeRemainingInRound(timeRemaining);
-                }
-            );
-
-            receiver.RegisterPacketHandler<UpdateGraceTimerFromServerToClientData>
-            (
-                FromServerToClientPackets.UpdateGraceTimer,
-                packetData =>
-                {
-                    int timeRemaining = packetData.TimeRemaining;
-                    PropHunt.Instance.Log("Grace time remaining: " + timeRemaining);
-                    GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetGraceTimeRemaining(timeRemaining);
-                }
-            );
-
-            receiver.RegisterPacketHandler<EndRoundFromServerToClientData>
-            (
-                FromServerToClientPackets.EndRound,
-                packetData =>
-                {
-                    ModHooks.BeforePlayerDeadHook -= OnPlayerDeath;
-
-                    var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
-                    var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
-                    blankerCtrl.SendEvent("FADE OUT INSTANT");
-
-                    PlayerData.instance.isInvincible = true;
-
-                    clientApi.ClientManager.ChangeTeam(Team.None);
-
-                    InitComponents();
-
-                    var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
-                    ui.SetTimeRemainingInRound(0);
-                    ui.SetGraceTimeRemaining(0);
-
-                    On.Breakable.Break -= OnBreakableBreak;
-
-                    bool huntersWin = packetData.HuntersWin;
-                    if (huntersWin)
-                    {
-                        PropHunt.Instance.Log("HUNTERS WIN");
-                        ui.SetPropHuntMessage("Hunters win!");
-                    }
-                    else
-                    {
-                        PropHunt.Instance.Log("PROPS WIN");
-                        ui.SetPropHuntMessage("Props win!");
-                    }
-                }
-            );
-                
             clientApi.CommandManager.RegisterCommand(new PropHuntCommand());
-            
-            clientApi.ClientManager.ConnectEvent += () => InitComponents();
-            clientApi.ClientManager.DisconnectEvent += () =>
+
+            clientApi.ClientManager.ConnectEvent += OnLocalPlayerConnect;
+            clientApi.ClientManager.DisconnectEvent += OnLocalPlayerDisconnect;
+
+            clientApi.ClientManager.PlayerConnectEvent += OnRemotePlayerConnect;
+            clientApi.ClientManager.PlayerEnterSceneEvent += OnRemotePlayerEnterScene;
+
+            var playerObjects = Object.FindObjectsOfType<GameObject>(true)
+                .Where(gameObject => gameObject.name.Contains("Player Prefab"));
+            foreach (var player in playerObjects)
             {
-                HeroController.instance.GetComponent<Hunter>().enabled = false;
-                HeroController.instance.GetComponent<LocalPropManager>().enabled = false;
-                
-                var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
-                ui.SetGraceTimeRemaining(0);
-                ui.SetTimeRemainingInRound(0);
-            };
-
-            clientApi.ClientManager.PlayerConnectEvent += player =>
-            {
-                var localPropManager = HeroController.instance.gameObject.GetOrAddComponent<LocalPropManager>();
-
-                if (!localPropManager.enabled) return;
-
-                var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
-
-                string propName = localPropManager.PropSprite?.name;
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropSprite,
-                    new PropSpriteFromClientToServerData
-                    {
-                        SpriteName = propName,
-                    }
-                );
-
-                var propTransform = localPropManager.Prop.transform;
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropPositionXY,
-                    new PropPositionXYFromClientToServerData
-                    {
-                        PositionXY = new HKMPVector2(
-                            propTransform.localPosition.x,
-                            propTransform.localPosition.y),
-                    }
-                );
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropPositionZ,
-                    new PropPositionZFromClientToServerData
-                    {
-                        PositionZ = propTransform.localPosition.z,
-                    }
-                );
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropRotation,
-                    new PropRotationFromClientToServerData
-                    {
-                        Rotation = propTransform.rotation.eulerAngles.z,
-                    }
-                );
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropScale,
-                    new PropScaleFromClientToServerData
-                    {
-                        ScaleFactor = propTransform.localScale.x,
-                    }
-                );
-            };
-            
-            clientApi.ClientManager.PlayerEnterSceneEvent += player =>
-            {
-                var heroPropManager = HeroController.instance.gameObject.GetOrAddComponent<LocalPropManager>();
-
-                if (heroPropManager.PropSprite == null) return;
-                
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropSprite,
-                    new PropSpriteFromClientToServerData
-                    {
-                        SpriteName = heroPropManager.PropSprite.name,
-                    }
-                );
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropPositionXY,
-                    new PropPositionXYFromClientToServerData
-                    {
-                        PositionXY = new HKMPVector2(
-                            heroPropManager.Prop.transform.localPosition.x,
-                            heroPropManager.Prop.transform.localPosition.y),
-                    }
-                );
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropPositionZ,
-                    new PropPositionZFromClientToServerData
-                    {
-                        PositionZ = heroPropManager.Prop.transform.localPosition.z,
-                    }
-                );
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropRotation,
-                    new PropRotationFromClientToServerData
-                    {
-                        Rotation = heroPropManager.Prop.transform.rotation.eulerAngles.z,
-                    }
-                );
-
-                sender.SendSingleData(
-                    FromClientToServerPackets.BroadcastPropScale,
-                    new PropScaleFromClientToServerData
-                    {
-                        ScaleFactor = heroPropManager.Prop.transform.localScale.x,
-                    }
-                );
-            };
-        }
-
-        private void OnPlayerDeath()
-        {
-            var localPropManager = HeroController.instance.GetComponent<LocalPropManager>();
-            if (localPropManager.enabled)
-            {
-                PropHuntClientAddonApi.ClientManager.ChangeTeam(Team.Grimm);
+                player.GetOrAddComponent<RemotePropManager>();
             }
-            var sender = PropHuntClientAddonApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
-            sender.SendSingleData(
-                FromClientToServerPackets.PlayerDeath,
-                new ReliableEmptyData());
         }
 
+        /// <summary>
+        /// Called when the local player dies.
+        /// </summary>
+        private void OnLocalPlayerDeath()
+        {
+            _pipe.SendToServer(new PlayerDeathEvent());
+        }
+
+        /// <summary>
+        /// Called when the local player connects to the server.
+        /// </summary>
+        private void OnLocalPlayerConnect() => InitComponents();
+
+        /// <summary>
+        /// Called when the local player disconnects from the server.
+        /// </summary>
+        private void OnLocalPlayerDisconnect()
+        {
+            HeroController.instance.GetComponent<Hunter>().enabled = false;
+            HeroController.instance.GetComponent<LocalPropManager>().enabled = false;
+
+            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            ui.SetGraceTimeRemaining(0);
+            ui.SetTimeRemainingInRound(0);
+        }
+
+        /// <summary>
+        /// Called when a remote player connects to the server.
+        /// </summary>
+        /// <param name="player">The player that connected</param>
+        private void OnRemotePlayerConnect(IClientPlayer player)
+        {
+            var localPropManager = HeroController.instance.gameObject.GetOrAddComponent<LocalPropManager>();
+
+            if (!localPropManager.enabled) return;
+
+            string propName = localPropManager.PropSprite?.name;
+
+            _pipe.SendToPlayer(player.Id, new UpdatePropSpriteEvent { SpriteName = propName });
+
+            var propTransform = localPropManager.Prop.transform;
+
+            _pipe.SendToPlayer(player.Id,
+                new UpdatePropPositionXYEvent { X = propTransform.position.x, Y = propTransform.position.y });
+            _pipe.SendToPlayer(player.Id, new UpdatePropPositionZEvent { Z = propTransform.position.z });
+            _pipe.SendToPlayer(player.Id,
+                new UpdatePropRotationEvent { Rotation = propTransform.rotation.eulerAngles.z });
+            _pipe.SendToPlayer(player.Id, new UpdatePropScaleEvent { Scale = propTransform.localScale.x });
+        }
+
+        /// <summary>
+        /// Called when a remote player enters the same scene as the local player.
+        /// </summary>
+        /// <param name="player">The player that entered the scene</param>
+        private void OnRemotePlayerEnterScene(IClientPlayer player)
+        {
+            var heroPropManager = HeroController.instance.gameObject.GetOrAddComponent<LocalPropManager>();
+
+            if (heroPropManager.PropSprite == null) return;
+
+            var propTransform = heroPropManager.Prop.transform;
+
+            PropHunt.Instance.Log("Sending Prop Sprite of name: " + heroPropManager.PropSprite?.name);
+
+            _pipe.SendToPlayer(player.Id, new UpdatePropSpriteEvent { SpriteName = heroPropManager.PropSprite?.name });
+            _pipe.SendToPlayer(player.Id,
+                new UpdatePropPositionXYEvent { X = propTransform.position.x, Y = propTransform.position.y });
+            _pipe.SendToPlayer(player.Id, new UpdatePropPositionZEvent { Z = propTransform.position.z });
+            _pipe.SendToPlayer(player.Id,
+                new UpdatePropRotationEvent { Rotation = propTransform.rotation.eulerAngles.z });
+            _pipe.SendToPlayer(player.Id, new UpdatePropScaleEvent { Scale = propTransform.localScale.x });
+        }
+
+        /// <summary>
+        /// Damage the player if they are a hunter and break a breakable object.
+        /// </summary>
         private void OnBreakableBreak(On.Breakable.orig_Break orig, Breakable self, float flingAngleMin, float flingAngleMax, float impactMultiplier)
         {
             HeroController.instance.TakeDamage(null, CollisionSide.top, 1, (int)HazardType.PIT);
@@ -418,6 +187,214 @@ namespace PropHunt.HKMP
 
             var propManager = HeroController.instance.gameObject.GetOrAddComponent<LocalPropManager>();
             propManager.enabled = true;
+        }
+
+        /// <summary>
+        /// Handle when a round ends.
+        /// </summary>
+        /// <param name="huntersWin">Whether the Hunters team won</param>
+        private void RoundEndHandler(bool huntersWin)
+        {
+            var propManager = HeroController.instance.GetComponent<LocalPropManager>();
+            var hunter = HeroController.instance.GetComponent<Hunter>();
+
+            ModHooks.BeforePlayerDeadHook -= OnLocalPlayerDeath;
+
+            var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
+            var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
+            blankerCtrl.SendEvent("FADE OUT INSTANT");
+
+            PlayerData.instance.isInvincible = true;
+
+            _pipe.ClientApi.ClientManager.ChangeTeam(Team.None);
+
+            hunter.enabled = false;
+            propManager.enabled = true;
+            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            ui.SetTimeRemainingInRound(0);
+            ui.SetGraceTimeRemaining(0);
+
+            On.Breakable.Break -= OnBreakableBreak;
+
+            InitComponents();
+
+            if (huntersWin)
+            {
+                PropHunt.Instance.Log("HUNTERS WIN");
+                ui.SetPropHuntMessage("Hunters win!");
+            }
+            else
+            {
+                PropHunt.Instance.Log("PROPS WIN");
+                ui.SetPropHuntMessage("Props win!");
+            }
+        }
+
+        /// <summary>
+        /// Handle when a remote player dies.
+        /// </summary>
+        private void OnRemotePlayerDeath(ushort playerId, ushort huntersRemaining, ushort huntersTotal, ushort propsRemaining, ushort propsTotal)
+        {
+            if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
+            {
+                PropHunt.Instance.Log($"Player {player.Username} has died.");
+
+                string text = $"Player {player.Username} has died!" +
+                              $"\nProps remaining: {propsRemaining}/{propsTotal}" +
+                              $"\nHunters remaining: {huntersRemaining}/{huntersTotal}";
+
+                GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetPropHuntMessage(text);
+            }
+        }
+
+        /// <summary>
+        /// Called when the local player is assigned to a team.
+        /// </summary>
+        /// <param name="isHunter">Whether the player is a hunter</param>
+        /// <param name="inGrace">Whether the round is still in its grace period</param>
+        private void AssignTeam(bool isHunter, bool inGrace)
+        {
+            ModHooks.BeforePlayerDeadHook += OnLocalPlayerDeath;
+
+            var propManager = HeroController.instance.GetComponent<LocalPropManager>();
+            var hunter = HeroController.instance.GetComponent<Hunter>();
+            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            PlayerData.instance.isInvincible = false;
+
+            if (isHunter)
+            {
+                _pipe.ClientApi.ClientManager.ChangeTeam(Team.Grimm);
+
+                propManager.enabled = false;
+                hunter.enabled = true;
+
+                if (inGrace)
+                {
+                    hunter.BeginGracePeriod();
+                }
+
+                PropHunt.Instance.Log("You are a HUNTER");
+                ui.SetPropHuntMessage("You are a hunter!");
+
+                HeroController.instance.SetMPCharge(198);
+                GameManager.instance.soulOrb_fsm.SendEvent("MP GAIN");
+
+                On.Breakable.Break += OnBreakableBreak;
+            }
+            else
+            {
+                _pipe.ClientApi.ClientManager.ChangeTeam(Team.Moss);
+
+                hunter.enabled = false;
+                propManager.enabled = true;
+
+                PropHunt.Instance.Log("You are a PROP");
+                ui.SetPropHuntMessage("You are a prop!");
+            }
+
+            USceneManager.LoadScene(USceneManager.GetActiveScene().name, LoadSceneMode.Single);
+        }
+
+        /// <summary>
+        /// Update the remaining grace time.
+        /// </summary>
+        /// <param name="timeRemaining">The remaining grace time</param>
+        private void UpdateGraceTime(uint timeRemaining)
+        {
+            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            ui.SetGraceTimeRemaining(timeRemaining);
+        }
+
+        /// <summary>
+        /// Update the remaining round time.
+        /// </summary>
+        /// <param name="timeRemaining">The remaining round time</param>
+        private void UpdateRoundTime(uint timeRemaining)
+        {
+            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            ui.SetTimeRemainingInRound(timeRemaining);
+        }
+
+        /// <summary>
+        /// Update a remote player's prop's position along the x and y axes.
+        /// </summary>
+        /// <param name="playerId">The ID of the remote player to update</param>
+        /// <param name="x">The new x component of the remote prop's position</param>
+        /// <param name="y">The new y component of the remote prop's position</param>
+        private void UpdateRemotePlayerPropPositionXY(ushort playerId, float x, float y)
+        {
+            if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
+            {
+                var propTransform = player.PlayerObject.transform.Find("Prop");
+                var newPos = new Vector3(x, y, propTransform.localPosition.z);
+                propTransform.localPosition = newPos;
+            }
+        }
+
+        /// <summary>
+        /// Update a remote player's prop's position along the z axis.
+        /// </summary>
+        /// <param name="playerId">The ID of the remote player to update</param>
+        /// <param name="z">The new z component of the remote prop's position</param>
+        private void UpdateRemotePlayerPropPositionZ(ushort playerId, float z)
+        {
+            if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
+            {
+                var propTransform = player.PlayerObject.transform.Find("Prop");
+                var newPos = new Vector3(propTransform.localPosition.x, propTransform.localPosition.y, z);
+                propTransform.localPosition = newPos;
+            }
+        }
+
+        /// <summary>
+        /// Update a remote player's prop's rotation.
+        /// </summary>
+        /// <param name="playerId">The ID of the remote player to update</param>
+        /// <param name="rotation">The new remote prop's rotation</param>
+        private void UpdateRemotePlayerPropRotation(ushort playerId, float rotation)
+        {
+            if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
+            {
+                var propTransform = player.PlayerObject.transform.Find("Prop");
+                var newRot = Quaternion.Euler(0, 0, rotation);
+                propTransform.localRotation = newRot;
+            }
+        }
+
+        /// <summary>
+        /// Update a remote player's prop's scale.
+        /// </summary>
+        /// <param name="playerId">The ID of the remote player to update</param>
+        /// <param name="scale">The new remote prop's scale</param>
+        private void UpdateRemotePlayerPropScale(ushort playerId, float scale)
+        {
+            if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
+            {
+                var propTransform = player.PlayerObject.transform.Find("Prop");
+                var newScale = Vector3.one * scale;
+                propTransform.localScale = newScale;
+            }
+        }
+
+        /// <summary>
+        /// Update a remote player's prop's sprite.
+        /// </summary>
+        /// <param name="playerId">The ID of the remote player to update</param>
+        /// <param name="spriteName">The new remote prop's sprite</param>
+        private void UpdateRemotePlayerPropSprite(ushort playerId, string spriteName)
+        {
+            PropHunt.Instance.Log("Receiving Prop Sprite of name: " + spriteName);
+            if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
+            {
+                var propSprite = string.IsNullOrEmpty(spriteName)
+                    ? null
+                    : Resources.FindObjectsOfTypeAll<Sprite>()
+                        .FirstOrDefault(sprite => sprite.name == spriteName);
+                PropHunt.Instance.Log("Get or Add manager");
+                var propManager = player.PlayerObject.GetOrAddComponent<RemotePropManager>();
+                GameManager.instance.StartCoroutine(propManager.SetPropSprite(propSprite));
+            }
+            PropHunt.Instance.Log("Finished setting prop sprite");
         }
     }
 }

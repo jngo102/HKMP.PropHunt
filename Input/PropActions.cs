@@ -7,17 +7,17 @@ namespace PropHunt.Input
     /// </summary>
     public class PropActions : PlayerActionSet
     {
-        public PlayerAction SelectKey { get; private set; }
-        public PlayerAction TranslateXYKey { get; private set; }
-        public PlayerAction TranslateZKey { get; private set; }
-        public PlayerAction RotateKey { get; private set; }
-        public PlayerAction ScaleKey { get; private set; }
+        public PlayerAction SelectKey { get; }
+        public PlayerAction TranslateXYKey { get; }
+        public PlayerAction TranslateZKey { get; }
+        public PlayerAction RotateKey { get; }
+        public PlayerAction ScaleKey { get; }
 
-        public PlayerAction SelectButton { get; private set; }
-        public PlayerAction TranslateXYButton { get; private set; }
-        public PlayerAction TranslateZButton { get; private set; }
-        public PlayerAction RotateButton { get; private set; }
-        public PlayerAction ScaleButton { get; private set; }
+        public PlayerAction SelectButton { get; }
+        public PlayerAction TranslateXYButton { get; }
+        public PlayerAction TranslateZButton { get; }
+        public PlayerAction RotateButton { get; }
+        public PlayerAction ScaleButton { get; }
 
         public PropActions()
         {
