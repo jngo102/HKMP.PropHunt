@@ -99,6 +99,7 @@ namespace PropHunt.HKMP
         /// </summary>
         private void OnLocalPlayerDeath()
         {
+            PropHunt.Instance.Log($"Local player has died.");
             _pipe.SendToServer(new PlayerDeathEvent());
         }
 
@@ -156,7 +157,7 @@ namespace PropHunt.HKMP
 
             var propTransform = heroPropManager.Prop.transform;
 
-            PropHunt.Instance.Log("Sending Prop Sprite of name: " + heroPropManager.PropSprite?.name);
+            PropHunt.Instance.Log($"Informing player {player.Id} that prop sprite is: {heroPropManager.PropSprite?.name}");
 
             _pipe.SendToPlayer(player.Id, new UpdatePropSpriteEvent { SpriteName = heroPropManager.PropSprite?.name });
             _pipe.SendToPlayer(player.Id,
@@ -182,6 +183,7 @@ namespace PropHunt.HKMP
         /// </summary>
         private void InitComponents()
         {
+            PropHunt.Instance.Log("Initializing components");
             var hunter = HeroController.instance.gameObject.GetOrAddComponent<Hunter>();
             hunter.enabled = false;
 
@@ -243,6 +245,7 @@ namespace PropHunt.HKMP
                               $"\nProps remaining: {propsRemaining}/{propsTotal}" +
                               $"\nHunters remaining: {huntersRemaining}/{huntersTotal}";
 
+                PropHunt.Instance.Log(text);
                 GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetPropHuntMessage(text);
             }
         }
@@ -383,7 +386,7 @@ namespace PropHunt.HKMP
         /// <param name="spriteName">The new remote prop's sprite</param>
         private void UpdateRemotePlayerPropSprite(ushort playerId, string spriteName)
         {
-            PropHunt.Instance.Log("Receiving Prop Sprite of name: " + spriteName);
+            PropHunt.Instance.Log($"Player {playerId} has a prop sprite of name: {spriteName}");
             if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
             {
                 var propSprite = string.IsNullOrEmpty(spriteName)
@@ -394,7 +397,6 @@ namespace PropHunt.HKMP
                 var propManager = player.PlayerObject.GetOrAddComponent<RemotePropManager>();
                 GameManager.instance.StartCoroutine(propManager.SetPropSprite(propSprite));
             }
-            PropHunt.Instance.Log("Finished setting prop sprite");
         }
     }
 }

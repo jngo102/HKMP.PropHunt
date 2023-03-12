@@ -339,7 +339,7 @@ namespace PropHunt.Behaviors
             }
 
             _pipe.BroadcastInScene(new UpdatePropSpriteEvent { SpriteName = spriteName },
-                GameManager.instance.sceneName, false);
+                GameManager.instance.sceneName);
         }
 
         /// <summary>

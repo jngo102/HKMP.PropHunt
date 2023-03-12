@@ -29,27 +29,21 @@ namespace PropHunt
 
         public GlobalSettings Settings { get; private set; } = new();
 
-        public PropHunt() : base("Prop Hunt")
-        {
-        }
+        public PropHunt() : base("Prop Hunt") { }
 
         public override string GetVersion() => Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
         public override void Initialize()
         {
-            Console.WriteLine(0);
             Instance ??= this;
-            Console.WriteLine(1);
 
             LoadAssets();
-            Console.WriteLine(2);
 
             if (Server == null)
             {
                 Server = new PropHuntServerAddon();
                 ServerAddon.RegisterAddon(Server);
             }
-            Console.WriteLine(3);
 
             if (Client == null)
             {
@@ -58,9 +52,7 @@ namespace PropHunt
             }
 
             PipeClient ??= new PipeClient(Name);
-
-            Console.WriteLine(4);
-
+                
             PipeClient.ServerCounterPartAvailable(serverAddonPresent =>
             {
                 if (serverAddonPresent)
@@ -70,11 +62,7 @@ namespace PropHunt
             });
 
             GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
-            Console.WriteLine(5);
             PipeClient.ClientApi?.CommandManager?.RegisterCommand(new PropHuntCommand());
-            Console.WriteLine("Client still null? " + (PipeClient == null));
-            Console.WriteLine("Client Api null? " + (PipeClient.ClientApi == null));
-            Console.WriteLine("CommandManager null? " + (PipeClient.ClientApi?.CommandManager == null));
         }
 
         public void OnLoadGlobal(GlobalSettings s) => Settings = s;
