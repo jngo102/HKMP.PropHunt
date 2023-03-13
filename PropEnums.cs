@@ -11,13 +11,4 @@
         Rotate,
         Scale,
     }
-
-    /// <summary>
-    /// The team that each player will be assigned.
-    /// </summary>
-    internal enum PropHuntTeam
-    {
-        Hunters,
-        Props,
-    }
 }

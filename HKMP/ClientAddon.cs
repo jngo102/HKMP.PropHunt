@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using GlobalEnums;
 using Hkmp.Api.Client;
@@ -17,14 +18,12 @@ namespace PropHunt.HKMP
 {
     internal class PropHuntClientAddon : ClientAddon
     {
-        protected override string Name => PropHunt.Instance.Name;
+        protected override string Name => Constants.NAME;
         protected override string Version => PropHunt.Instance.GetVersion();
         public override bool NeedsNetwork => true;
 
         private PipeClient _pipe;
         public static PropHuntClientAddon Instance { get; private set; }
-
-        private List<Sprite> _spriteResources;
 
         public override void Initialize(IClientApi clientApi)
         {
@@ -111,7 +110,6 @@ namespace PropHunt.HKMP
         private void OnLocalPlayerConnect()
         {
             InitComponents();
-            _spriteResources = Resources.LoadAll<Sprite>(string.Empty).ToList();
         }
 
         /// <summary>
@@ -372,7 +370,7 @@ namespace PropHunt.HKMP
             {
                 var propSprite = string.IsNullOrEmpty(spriteName)
                     ? null
-                    : _spriteResources.FirstOrDefault(sprite => sprite.name == spriteName);
+                    : Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == spriteName);
                 var propManager = player.PlayerObject.GetOrAddComponent<RemotePropManager>();
                 propManager.SetPropSprite(propSprite);
             }

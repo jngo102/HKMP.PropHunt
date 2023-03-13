@@ -7,7 +7,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using On.TMPro;
 using PropHunt.Util;
 using Random = System.Random;
 
@@ -15,7 +14,7 @@ namespace PropHunt.HKMP
 {
     internal class PropHuntServerAddon : ServerAddon
     {
-        protected override string Name => PropHunt.Instance.Name;
+        protected override string Name => Constants.NAME;
         protected override string Version => Assembly.GetExecutingAssembly().GetName().Version.ToString();
         public override bool NeedsNetwork => true;
 
@@ -26,19 +25,19 @@ namespace PropHunt.HKMP
         /// <summary>
         /// A collection of all hunters playing.
         /// </summary>
-        private List<IServerPlayer> _allHunters = new();
+        private readonly List<IServerPlayer> _allHunters = new();
         /// <summary>
         /// A collection of all props playing.
         /// </summary>
-        private List<IServerPlayer> _allProps = new();
+        private readonly List<IServerPlayer> _allProps = new();
         /// <summary>
         /// A collection of all currently alive players on the Hunters team.
         /// </summary>
-        private List<IServerPlayer> _livingHunters = new();
+        private readonly List<IServerPlayer> _livingHunters = new();
         /// <summary>
         /// A collection of all currently alive players on the Props team.
         /// </summary>
-        private List<IServerPlayer> _livingProps = new();
+        private readonly List<IServerPlayer> _livingProps = new();
         /// <summary>
         /// The total number of hunters playing.
         /// </summary>
@@ -157,8 +156,8 @@ namespace PropHunt.HKMP
             _livingHunters.Clear();
             _livingProps.Clear();
 
-            _allHunters = players.GetRange(0, halfCount);
-            _allProps = players.GetRange(halfCount, players.Count - halfCount);
+            _allHunters.AddRange(players.GetRange(0, halfCount));
+            _allProps.AddRange(players.GetRange(halfCount, players.Count - halfCount));
 
             _livingHunters.AddRange(_allHunters);
             _livingProps.AddRange(_allProps);

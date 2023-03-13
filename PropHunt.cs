@@ -1,5 +1,4 @@
-﻿using System;
-using Hkmp.Api.Client;
+﻿using Hkmp.Api.Client;
 using Hkmp.Api.Server;
 using Modding;
 using PropHunt.HKMP;
@@ -29,7 +28,7 @@ namespace PropHunt
 
         public GlobalSettings Settings { get; private set; } = new();
 
-        public PropHunt() : base("Prop Hunt") { }
+        public PropHunt() : base(Constants.NAME) { }
 
         public override string GetVersion() => Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
@@ -70,7 +69,7 @@ namespace PropHunt
 
         public MenuScreen GetMenuScreen(MenuScreen modListMenu, ModToggleDelegates? toggleDelegates)
         {
-            _menu ??= new Menu("Prop Hunt", new Element[] {
+            _menu ??= new Menu(Constants.NAME, new Element[] {
                 Blueprints.KeyAndButtonBind(
                     "Select Prop",
                     Settings.Bindings.SelectKey,
