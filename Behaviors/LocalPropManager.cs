@@ -8,6 +8,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Hkmp.Api.Client;
+using PropHunt.HKMP;
 using UnityEngine;
 
 namespace PropHunt.Behaviors
@@ -330,8 +332,7 @@ namespace PropHunt.Behaviors
                 _pd.maxHealthBase = (int)maxHealth;
                 _pd.health = Mathf.FloorToInt(healthRatio * _pd.maxHealth);
                 _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
-
-                spriteName = breakSprite.name;
+                
                 _propSprite.transform.localPosition = Vector3.zero;
                 _propSprite.transform.rotation = Quaternion.identity;
                 _propSprite.transform.localScale = Vector3.one;
@@ -344,7 +345,7 @@ namespace PropHunt.Behaviors
                 return;
             }
 
-            _pipe.Broadcast(new UpdatePropSpriteEvent { SpriteName = spriteName });
+            PropHuntClientAddon.SendPropSpritePacket(PropSprite, Prop.transform.localPosition, Prop.transform.localRotation.eulerAngles.z, Prop.transform.localScale.x);
         }
 
         /// <summary>
@@ -439,7 +440,7 @@ namespace PropHunt.Behaviors
 
             if (!_pipe.ClientApi.NetClient.IsConnected) return;
 
-            _pipe.Broadcast(new UpdatePropSpriteEvent { SpriteName = string.Empty });
+            PropHuntClientAddon.SendPropSpritePacket(null, Vector3.zero, 0, 1);
         }
 
         /// <summary>

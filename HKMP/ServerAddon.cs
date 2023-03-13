@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Remoting.Messaging;
 using System.Threading;
 using System.Threading.Tasks;
 using PropHunt.Util;
@@ -105,7 +106,40 @@ namespace PropHunt.HKMP
             {
                 UpdateRoundTime(pipeEvent.TimeRemaining);
             });
-            
+
+            var sender = serverApi.NetServer.GetNetworkSender<FromServerToClientPackets>(Instance);
+            var receiver = serverApi.NetServer.GetNetworkReceiver<FromClientToServerPackets>(Instance, serverPacket =>
+            {
+                return serverPacket switch
+                {
+                    FromClientToServerPackets.BroadcastPropSprite => new PropSpriteFromClientToServerData(),
+                    _ => null,
+                };
+            });
+
+            receiver.RegisterPacketHandler<PropSpriteFromClientToServerData>(FromClientToServerPackets.BroadcastPropSprite,
+                (id, packetData) =>
+                {
+                    if (serverApi.ServerManager.TryGetPlayer(id, out var player))
+                    {
+                        var playersInScene = serverApi.ServerManager.Players
+                            .Where(p => p.CurrentScene == player.CurrentScene && p != player).Select(p => p.Id)
+                            .ToArray();
+                        
+                        sender.SendSingleData(FromServerToClientPackets.UpdatePropSprite, new PropSpriteFromServerToClientData
+                        {
+                            PlayerId = id,
+                            SpriteName = packetData.SpriteName,
+                            NumBytes = packetData.NumBytes,
+                            SpriteBytes = packetData.SpriteBytes,
+                            PositionXY = packetData.PositionXY,
+                            PositionZ = packetData.PositionZ,
+                            RotationZ = packetData.RotationZ,
+                            Scale = packetData.Scale,
+                        }, playersInScene);
+                    }
+                });
+
             _intervalTimer = new Timer(IntervalTimerElapse, null, Timeout.Infinite, Timeout.Infinite);
             _roundTimer = new Timer(RoundTimerElapse, null, Timeout.Infinite, Timeout.Infinite);
             Task.Run(async () =>

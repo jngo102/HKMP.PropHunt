@@ -1,7 +1,8 @@
-using System;
-using System.Collections.Generic;
+using System.Collections;
+using System.Linq;
 using GlobalEnums;
 using Hkmp.Api.Client;
+using Hkmp.Api.Client.Networking;
 using Hkmp.Game;
 using HkmpPouch;
 using Modding;
@@ -9,9 +10,10 @@ using Modding.Utils;
 using PropHunt.Behaviors;
 using PropHunt.Events;
 using PropHunt.UI;
-using System.Linq;
+using Satchel;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Object = UnityEngine.Object;
 using USceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace PropHunt.HKMP
@@ -24,6 +26,9 @@ namespace PropHunt.HKMP
 
         private PipeClient _pipe;
         public static PropHuntClientAddon Instance { get; private set; }
+
+        private static IClientAddonNetworkSender<FromClientToServerPackets> _sender;
+        private static IClientAddonNetworkReceiver<FromServerToClientPackets> _receiver;
 
         public override void Initialize(IClientApi clientApi)
         {
@@ -75,10 +80,39 @@ namespace PropHunt.HKMP
                 UpdateRemotePlayerPropScale(pipeEvent.FromPlayer, pipeEvent.Scale);
             });
 
-            _pipe.On(UpdatePropSpriteEventFactory.Instance).Do<UpdatePropSpriteEvent>(pipeEvent =>
+            // Use lower level sender and receiver for better network performance
+            _sender = clientApi.NetClient.GetNetworkSender<FromClientToServerPackets>(Instance);
+            _receiver = clientApi.NetClient.GetNetworkReceiver<FromServerToClientPackets>(Instance, clientPacket =>
             {
-                UpdateRemotePlayerPropSprite(pipeEvent.FromPlayer, pipeEvent.SpriteName);
+                return clientPacket switch
+                {
+                    FromServerToClientPackets.UpdatePropSprite => new PropSpriteFromServerToClientData(),
+                    _ => null,
+                };
             });
+
+            _receiver.RegisterPacketHandler<PropSpriteFromServerToClientData>(FromServerToClientPackets.UpdatePropSprite,
+                packetData =>
+                {
+                    if (clientApi.ClientManager.TryGetPlayer(packetData.PlayerId, out var player))
+                    {
+                        var propManager = player.PlayerObject.GetOrAddComponent<RemotePropManager>();
+                        Sprite sprite = null;
+                        if (packetData.SpriteBytes != null)
+                        {
+                            var texture = new Texture2D(2, 2);
+                            texture.LoadImage(packetData.SpriteBytes);
+                            sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one * 0.5f, 64);
+                            sprite.name = packetData.SpriteName;
+                        }
+                        
+                        propManager.SetPropSprite(sprite);
+                        var propTransform = propManager.Prop.transform;
+                        propTransform.localPosition = new Vector3(packetData.PositionXY.X, packetData.PositionXY.Y, packetData.PositionZ);
+                        propTransform.localRotation = Quaternion.Euler(0, 0, packetData.RotationZ);
+                        propTransform.localScale = Vector3.one * packetData.Scale;
+                    }
+                });
 
             clientApi.CommandManager.RegisterCommand(new PropHuntCommand());
 
@@ -87,12 +121,20 @@ namespace PropHunt.HKMP
             
             clientApi.ClientManager.PlayerEnterSceneEvent += OnRemotePlayerEnterScene;
 
-            //var playerObjects = Object.FindObjectsOfType<GameObject>(true)
-            //    .Where(gameObject => gameObject.name.Contains("Player Prefab"));
-            //foreach (var player in playerObjects)
-            //{
-            //    player.GetOrAddComponent<RemotePropManager>();
-            //}
+            GameManager.instance.StartCoroutine(AddRemotePropManagerComponentsToPlayerPrefabs());
+        }
+
+        private IEnumerator AddRemotePropManagerComponentsToPlayerPrefabs()
+        {
+            yield return null;
+            yield return new WaitUntil(() => Object.FindObjectsOfType<GameObject>(true).Count(go => go.name == "Player Prefab") > 0);
+
+            var playerObjects = Object.FindObjectsOfType<GameObject>(true)
+                .Where(gameObject => gameObject.name.Contains("Player Prefab"));
+            foreach (var player in playerObjects)
+            {
+                player.GetOrAddComponent<RemotePropManager>();
+            }
         }
 
         /// <summary>
@@ -100,7 +142,7 @@ namespace PropHunt.HKMP
         /// </summary>
         private void OnLocalPlayerDeath()
         {
-            PropHunt.Instance.Log($"Local player has died.");
+            PropHunt.Instance.Log("Local player has died.");
             _pipe.SendToServer(new PlayerDeathEvent());
         }
 
@@ -137,15 +179,9 @@ namespace PropHunt.HKMP
 
             var propTransform = heroPropManager.Prop.transform;
 
-            PropHunt.Instance.Log($"Informing player {player.Id} that prop sprite is: {heroPropManager.PropSprite?.name}");
-            
-            _pipe.SendToPlayer(player.Id, new UpdatePropSpriteEvent { SpriteName = heroPropManager.PropSprite?.name });
-            _pipe.SendToPlayer(player.Id,
-                new UpdatePropPositionXYEvent { X = propTransform.position.x, Y = propTransform.position.y });
-            _pipe.SendToPlayer(player.Id, new UpdatePropPositionZEvent { Z = propTransform.position.z });
-            _pipe.SendToPlayer(player.Id,
-                new UpdatePropRotationEvent { Rotation = propTransform.rotation.eulerAngles.z });
-            _pipe.SendToPlayer(player.Id, new UpdatePropScaleEvent { Scale = propTransform.localScale.x });
+            //PropHunt.Instance.Log($"Informing player {player.Id} that prop sprite is: {heroPropManager.PropSprite?.name}");
+
+            SendPropSpritePacket(heroPropManager.PropSprite, propTransform.localPosition, propTransform.localRotation.eulerAngles.z, propTransform.localScale.x);
         }
 
         /// <summary>
@@ -357,23 +393,40 @@ namespace PropHunt.HKMP
                 propTransform.localScale = newScale;
             }
         }
-
+        
         /// <summary>
-        /// Update a remote player's prop's sprite.
+        /// Send a packet to the server with the local player's prop's sprite, position, rotation, and scale.
         /// </summary>
-        /// <param name="playerId">The ID of the remote player to update</param>
-        /// <param name="spriteName">The new remote prop's sprite</param>
-        private void UpdateRemotePlayerPropSprite(ushort playerId, string spriteName)
+        /// <param name="sprite">The sprite to be deconstructed and sent as bytes</param>
+        /// <param name="position">The prop's position</param>
+        /// <param name="rotationZ">The prop's rotation along the Z Euler axis</param>
+        /// <param name="scale">The prop's scale for all 3 axes</param>
+        public static void SendPropSpritePacket(Sprite sprite, Vector3 position, float rotationZ, float scale)
         {
-            PropHunt.Instance.Log($"Updating player {playerId}'s prop sprite to: {spriteName}");
-            if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
+            if (sprite == null)
             {
-                var propSprite = string.IsNullOrEmpty(spriteName)
-                    ? null
-                    : Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == spriteName);
-                var propManager = player.PlayerObject.GetOrAddComponent<RemotePropManager>();
-                propManager.SetPropSprite(propSprite);
+                _sender.SendSingleData(FromClientToServerPackets.BroadcastPropSprite, new PropSpriteFromClientToServerData
+                {
+                    SpriteName = string.Empty,
+                    NumBytes = 0,
+                    SpriteBytes = null,
+                });
+                return;
             }
+
+
+            var texture = SpriteUtils.ExtractTextureFromSprite(sprite);
+            var bytes = texture.EncodeToPNG();
+            _sender.SendSingleData(FromClientToServerPackets.BroadcastPropSprite, new PropSpriteFromClientToServerData
+            {
+                SpriteName = sprite.name,
+                NumBytes = bytes.Length,
+                SpriteBytes = bytes,
+                PositionXY = new Hkmp.Math.Vector2(position.x, position.y),
+                PositionZ = position.z,
+                RotationZ = rotationZ,
+                Scale = scale,
+            });
         }
     }
 }
