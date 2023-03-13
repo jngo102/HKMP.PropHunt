@@ -6,6 +6,7 @@ using PropHunt.Util;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -129,7 +130,11 @@ namespace PropHunt.Behaviors
             On.HeroController.TakeDamage += OnTakeDamage;
         }
 
-        private void OnDisable()
+        private void OnDisable() => Revert();
+
+        private void OnDestroy() => Revert();
+
+        private void Revert()
         {
             ClearProp();
             EnableInput(true);
@@ -336,10 +341,10 @@ namespace PropHunt.Behaviors
             else
             {
                 ClearProp();
+                return;
             }
 
-            _pipe.BroadcastInScene(new UpdatePropSpriteEvent { SpriteName = spriteName },
-                GameManager.instance.sceneName);
+            _pipe.Broadcast(new UpdatePropSpriteEvent { SpriteName = spriteName });
         }
 
         /// <summary>
@@ -356,10 +361,9 @@ namespace PropHunt.Behaviors
                     var clampedVector = Vector2.ClampMagnitude(Prop.transform.localPosition, XY_MAX_MAGNITUDE);
                     var clampedPos = new Vector3(clampedVector.x, clampedVector.y, Prop.transform.localPosition.z);
                     Prop.transform.localPosition = clampedPos;
-                    _pipe.BroadcastInScene(
+                    _pipe.Broadcast(
                         new UpdatePropPositionXYEvent
-                            { X = Prop.transform.localPosition.x, Y = Prop.transform.localPosition.y },
-                        GameManager.instance.sceneName, false);
+                            { X = Prop.transform.localPosition.x, Y = Prop.transform.localPosition.y }, true, false);
                     break;
                 case PropState.TranslateZ:
                     float inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0
@@ -370,8 +374,7 @@ namespace PropHunt.Behaviors
                     clampedPos = new Vector3(Prop.transform.localPosition.x, Prop.transform.localPosition.y,
                         Mathf.Clamp(Prop.transform.localPosition.z, MIN_Z, MAX_Z));
                     Prop.transform.localPosition = clampedPos;
-                    _pipe.BroadcastInScene(new UpdatePropPositionZEvent { Z = Prop.transform.localPosition.z },
-                        GameManager.instance.sceneName, false);
+                    _pipe.Broadcast(new UpdatePropPositionZEvent { Z = Prop.transform.localPosition.z }, true, false);
                     break;
                 case PropState.Rotate:
                     inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0
@@ -387,9 +390,9 @@ namespace PropHunt.Behaviors
                         _iconRenderer.flipX = false;
                     }
                     Prop.transform.Rotate(0, 0, rotateZ);
-                    _pipe.BroadcastInScene(
-                        new UpdatePropRotationEvent { Rotation = Prop.transform.localRotation.eulerAngles.z },
-                        GameManager.instance.sceneName, false);
+                    _pipe.Broadcast(
+                        new UpdatePropRotationEvent { Rotation = Prop.transform.localRotation.eulerAngles.z }, true,
+                        false);
                     break;
                 case PropState.Scale:
                     inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0
@@ -408,8 +411,7 @@ namespace PropHunt.Behaviors
                     var scaleFactor = Prop.transform.localScale.x + inputValue * Time.deltaTime * SCALE_SPEED;
                     scaleFactor = Mathf.Clamp(scaleFactor, MIN_SCALE, MAX_SCALE);
                     Prop.transform.localScale = Vector3.one * scaleFactor;
-                    _pipe.BroadcastInScene(new UpdatePropScaleEvent { Scale = Prop.transform.localScale.x },
-                        GameManager.instance.sceneName, false);
+                    _pipe.Broadcast(new UpdatePropScaleEvent { Scale = Prop.transform.localScale.x }, true, false);
                     break;
             }
         }

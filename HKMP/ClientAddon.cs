@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GlobalEnums;
 using Hkmp.Api.Client;
 using Hkmp.Game;
@@ -22,6 +23,8 @@ namespace PropHunt.HKMP
 
         private PipeClient _pipe;
         public static PropHuntClientAddon Instance { get; private set; }
+
+        private List<Sprite> _spriteResources;
 
         public override void Initialize(IClientApi clientApi)
         {
@@ -82,16 +85,15 @@ namespace PropHunt.HKMP
 
             clientApi.ClientManager.ConnectEvent += OnLocalPlayerConnect;
             clientApi.ClientManager.DisconnectEvent += OnLocalPlayerDisconnect;
-
-            clientApi.ClientManager.PlayerConnectEvent += OnRemotePlayerConnect;
+            
             clientApi.ClientManager.PlayerEnterSceneEvent += OnRemotePlayerEnterScene;
 
-            var playerObjects = Object.FindObjectsOfType<GameObject>(true)
-                .Where(gameObject => gameObject.name.Contains("Player Prefab"));
-            foreach (var player in playerObjects)
-            {
-                player.GetOrAddComponent<RemotePropManager>();
-            }
+            //var playerObjects = Object.FindObjectsOfType<GameObject>(true)
+            //    .Where(gameObject => gameObject.name.Contains("Player Prefab"));
+            //foreach (var player in playerObjects)
+            //{
+            //    player.GetOrAddComponent<RemotePropManager>();
+            //}
         }
 
         /// <summary>
@@ -106,7 +108,11 @@ namespace PropHunt.HKMP
         /// <summary>
         /// Called when the local player connects to the server.
         /// </summary>
-        private void OnLocalPlayerConnect() => InitComponents();
+        private void OnLocalPlayerConnect()
+        {
+            InitComponents();
+            _spriteResources = Resources.LoadAll<Sprite>(string.Empty).ToList();
+        }
 
         /// <summary>
         /// Called when the local player disconnects from the server.
@@ -116,33 +122,9 @@ namespace PropHunt.HKMP
             HeroController.instance.GetComponent<Hunter>().enabled = false;
             HeroController.instance.GetComponent<LocalPropManager>().enabled = false;
 
-            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
             ui.SetGraceTimeRemaining(0);
             ui.SetTimeRemainingInRound(0);
-        }
-
-        /// <summary>
-        /// Called when a remote player connects to the server.
-        /// </summary>
-        /// <param name="player">The player that connected</param>
-        private void OnRemotePlayerConnect(IClientPlayer player)
-        {
-            var localPropManager = HeroController.instance.gameObject.GetOrAddComponent<LocalPropManager>();
-
-            if (!localPropManager.enabled) return;
-
-            string propName = localPropManager.PropSprite?.name;
-
-            _pipe.SendToPlayer(player.Id, new UpdatePropSpriteEvent { SpriteName = propName });
-
-            var propTransform = localPropManager.Prop.transform;
-
-            _pipe.SendToPlayer(player.Id,
-                new UpdatePropPositionXYEvent { X = propTransform.position.x, Y = propTransform.position.y });
-            _pipe.SendToPlayer(player.Id, new UpdatePropPositionZEvent { Z = propTransform.position.z });
-            _pipe.SendToPlayer(player.Id,
-                new UpdatePropRotationEvent { Rotation = propTransform.rotation.eulerAngles.z });
-            _pipe.SendToPlayer(player.Id, new UpdatePropScaleEvent { Scale = propTransform.localScale.x });
         }
 
         /// <summary>
@@ -158,7 +140,7 @@ namespace PropHunt.HKMP
             var propTransform = heroPropManager.Prop.transform;
 
             PropHunt.Instance.Log($"Informing player {player.Id} that prop sprite is: {heroPropManager.PropSprite?.name}");
-
+            
             _pipe.SendToPlayer(player.Id, new UpdatePropSpriteEvent { SpriteName = heroPropManager.PropSprite?.name });
             _pipe.SendToPlayer(player.Id,
                 new UpdatePropPositionXYEvent { X = propTransform.position.x, Y = propTransform.position.y });
@@ -212,7 +194,7 @@ namespace PropHunt.HKMP
 
             hunter.enabled = false;
             propManager.enabled = true;
-            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
             ui.SetTimeRemainingInRound(0);
             ui.SetGraceTimeRemaining(0);
 
@@ -239,14 +221,13 @@ namespace PropHunt.HKMP
         {
             if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
             {
-                PropHunt.Instance.Log($"Player {player.Username} has died.");
-
                 string text = $"Player {player.Username} has died!" +
                               $"\nProps remaining: {propsRemaining}/{propsTotal}" +
                               $"\nHunters remaining: {huntersRemaining}/{huntersTotal}";
 
                 PropHunt.Instance.Log(text);
-                GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>().SetPropHuntMessage(text);
+                var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
+                ui.SetPropHuntMessage(text);
             }
         }
 
@@ -261,7 +242,7 @@ namespace PropHunt.HKMP
 
             var propManager = HeroController.instance.GetComponent<LocalPropManager>();
             var hunter = HeroController.instance.GetComponent<Hunter>();
-            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
             PlayerData.instance.isInvincible = false;
 
             if (isHunter)
@@ -304,7 +285,7 @@ namespace PropHunt.HKMP
         /// <param name="timeRemaining">The remaining grace time</param>
         private void UpdateGraceTime(uint timeRemaining)
         {
-            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
             ui.SetGraceTimeRemaining(timeRemaining);
         }
 
@@ -314,7 +295,7 @@ namespace PropHunt.HKMP
         /// <param name="timeRemaining">The remaining round time</param>
         private void UpdateRoundTime(uint timeRemaining)
         {
-            var ui = GameCameras.instance.hudCanvas.GetComponent<UIPropHunt>();
+            var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
             ui.SetTimeRemainingInRound(timeRemaining);
         }
 
@@ -386,16 +367,14 @@ namespace PropHunt.HKMP
         /// <param name="spriteName">The new remote prop's sprite</param>
         private void UpdateRemotePlayerPropSprite(ushort playerId, string spriteName)
         {
-            PropHunt.Instance.Log($"Player {playerId} has a prop sprite of name: {spriteName}");
+            PropHunt.Instance.Log($"Updating player {playerId}'s prop sprite to: {spriteName}");
             if (_pipe.ClientApi.ClientManager.TryGetPlayer(playerId, out var player))
             {
                 var propSprite = string.IsNullOrEmpty(spriteName)
                     ? null
-                    : Resources.FindObjectsOfTypeAll<Sprite>()
-                        .FirstOrDefault(sprite => sprite.name == spriteName);
-                PropHunt.Instance.Log("Get or Add manager");
+                    : _spriteResources.FirstOrDefault(sprite => sprite.name == spriteName);
                 var propManager = player.PlayerObject.GetOrAddComponent<RemotePropManager>();
-                GameManager.instance.StartCoroutine(propManager.SetPropSprite(propSprite));
+                propManager.SetPropSprite(propSprite);
             }
         }
     }

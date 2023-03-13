@@ -43,7 +43,7 @@ jobs:
 
       - name: Setup MSBuild
         run: |
-          sudo apt-get install -y nuget mono-devel mono-xbuild
+          sudo apt-get install -y nuget mono-devel
 
       - name: Restore packages
         run: nuget restore PropHunt.csproj

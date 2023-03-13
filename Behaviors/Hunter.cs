@@ -44,12 +44,10 @@ namespace PropHunt.Behaviors
         /// </summary>
         public void BeginGracePeriod()
         {
-            PropHunt.Instance.Log("Showing Blanker");
             var hudCam = GameCameras.instance.hudCamera;
             var blanker = hudCam.transform.Find("2dtk Blanker").gameObject;
             blanker.LocateMyFSM("Blanker Control").SendEvent("FADE IN INSTANT");
-
-            PropHunt.Instance.Log("Taking away control");
+            
             var hc = GetComponent<HeroController>();
             hc.IgnoreInput();
             hc.RelinquishControl();

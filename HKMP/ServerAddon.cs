@@ -8,13 +8,14 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using On.TMPro;
+using PropHunt.Util;
 using Random = System.Random;
 
 namespace PropHunt.HKMP
 {
     internal class PropHuntServerAddon : ServerAddon
     {
-        protected override string Name => "Prop Hunt";
+        protected override string Name => PropHunt.Instance.Name;
         protected override string Version => Assembly.GetExecutingAssembly().GetName().Version.ToString();
         public override bool NeedsNetwork => true;
 
@@ -124,15 +125,12 @@ namespace PropHunt.HKMP
 
         private void IntervalTimerElapse(object stateInfo)
         {
+            _pipe.Broadcast(new UpdateRoundTimeEvent { TimeRemaining = (uint)(_dueTimeRound - DateTime.Now).TotalSeconds });
+            
             var graceTimeRemaining = (_dueTimeGrace - DateTime.Now).TotalSeconds;
             if (graceTimeRemaining >= 0)
             {
                 _pipe.Broadcast(new UpdateGraceTimeEvent { TimeRemaining = (uint)graceTimeRemaining });
-            }
-
-            if (graceTimeRemaining <= 0)
-            {
-                _pipe.Broadcast(new UpdateRoundTimeEvent { TimeRemaining = (uint)(_dueTimeRound - DateTime.Now).TotalSeconds });
             }
         }
 
@@ -151,7 +149,7 @@ namespace PropHunt.HKMP
             _pipe.Logger.Info($"Round started; Grace Time: {gracePeriod}, Round Time: {roundTime}");
             _roundStarted = true;
             var players = _pipe.ServerApi.ServerManager.Players.ToList();
-            players = players.OrderBy(_ => Guid.NewGuid()).ToList();
+            players.Shuffle();
             int halfCount = players.Count / 2;
 
             _allHunters.Clear();

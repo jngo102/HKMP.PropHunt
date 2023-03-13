@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 
 namespace PropHunt.Behaviors
@@ -19,22 +18,24 @@ namespace PropHunt.Behaviors
             _prop.transform.SetParent(transform);
             ResetPropTransform();
             _propSprite = _prop.AddComponent<SpriteRenderer>();
-            PropHunt.Instance.Log("RemotePropManager Awake");
         }
 
         /// <summary>
         /// Set the remote player's prop's sprite.
         /// </summary>
         /// <param name="sprite">The sprite to change to</param>
-        public IEnumerator SetPropSprite(Sprite sprite)
+        public void SetPropSprite(Sprite sprite)
         {
-            yield return new WaitUntil(() => _propSprite != null);
+            PropHunt.Instance.Log("Sprite name to change to: " + sprite?.name);
+            PropHunt.Instance.Log("Current prop sprite name: " + _propSprite?.sprite?.name);
+            if (sprite?.name == _propSprite?.sprite?.name) return;
+
+            PropHunt.Instance.Log("Prop sprite null? " + (_propSprite == null));
             
-            PropHunt.Instance.Log("Setting prop sprite to " + sprite?.name);
-            PropHunt.Instance.Log("Prop SpriteRenderer null? " + (_propSprite == null));
             _propSprite.sprite = sprite;
 
-            PropHunt.Instance.Log("Resetting prop transform");
+            PropHunt.Instance.Log("Prop sprite is now: " + _propSprite.sprite?.name);
+
             ResetPropTransform();
 
             if (sprite == null)
@@ -42,14 +43,13 @@ namespace PropHunt.Behaviors
                 PropHunt.Instance.Log("Sprite is null, showing player");
                 _meshRend.enabled = true;
                 _username.SetActive(true);
-                yield break;
+                return;
             }
 
-            PropHunt.Instance.Log("Disabling meshrend");
+            PropHunt.Instance.Log("Sprite is NOT null, hiding player");
             _meshRend.enabled = false;
-            if (!HeroController.instance.GetComponent<LocalPropManager>().enabled)
+            if (HeroController.instance.GetComponent<LocalPropManager>()?.PropSprite != null)
             {
-                PropHunt.Instance.Log("Disabling username");
                 _username.SetActive(false);
             }
         }
