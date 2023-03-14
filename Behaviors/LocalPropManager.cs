@@ -1,11 +1,11 @@
 using GlobalEnums;
+using PropHunt.HKMP;
 using PropHunt.Input;
 using PropHunt.Util;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using PropHunt.HKMP;
 using UnityEngine;
 
 namespace PropHunt.Behaviors
@@ -47,7 +47,6 @@ namespace PropHunt.Behaviors
         private PropActions _propInput;
         private MeshRenderer _meshRend;
         private PlayerData _pd;
-        private GameObject _username;
         public GameObject Prop { get; private set; }
         private SpriteRenderer _propSprite;
         public Sprite PropSprite => _propSprite.sprite;
@@ -66,7 +65,6 @@ namespace PropHunt.Behaviors
             _propInput = PropHunt.Instance.Settings.Bindings;
             _meshRend = GetComponent<MeshRenderer>();
             _pd = PlayerData.instance;
-            _username = transform.Find("Username").gameObject;
 
             Prop = new GameObject("Prop");
             Prop.transform.SetParent(transform);
@@ -329,7 +327,6 @@ namespace PropHunt.Behaviors
                 _propSprite.transform.rotation = Quaternion.identity;
                 _propSprite.transform.localScale = Vector3.one;
                 _meshRend.enabled = false;
-                _username.SetActive(false);
             }
             else
             {
@@ -423,8 +420,6 @@ namespace PropHunt.Behaviors
             _meshRend.enabled = true;
             _hc.AcceptInput();
             _hc.RegainControl();
-
-            _username.SetActive(true);
 
             try
             {

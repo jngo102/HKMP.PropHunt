@@ -1,4 +1,5 @@
 using Hkmp.Api.Server;
+using Hkmp.Api.Server.Networking;
 using PropHunt.Util;
 using System;
 using System.Collections.Generic;
@@ -6,7 +7,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Hkmp.Api.Server.Networking;
 using Random = System.Random;
 
 namespace PropHunt.HKMP
@@ -112,6 +112,7 @@ namespace PropHunt.HKMP
                         if (PropsAlive <= 0)
                         {
                             EndRound(true);
+                            return;
                         }
 
                         _sender.SendSingleData(FromServerToClientPackets.AssignTeam, new AssignTeamFromServerToClientData
@@ -126,26 +127,24 @@ namespace PropHunt.HKMP
                         if (HuntersAlive <= 0)
                         {
                             EndRound(false);
+                            return;
                         }
                     }
 
-                    if (_roundStarted)
+                    var playersExcludingSender =
+                        serverApi.ServerManager.Players.Where(player => player.Id != id).ToList();
+                    foreach (var player in playersExcludingSender)
                     {
-                        var playersExcludingSender =
-                            serverApi.ServerManager.Players.Where(player => player.Id != id).ToList();
-                        foreach (var player in playersExcludingSender)
-                        {
-                            _sender.SendSingleData(FromServerToClientPackets.PlayerDeath,
-                                new PlayerDeathFromServerToClientData
-                                {
-                                    PlayerId = id,
-                                    HuntersRemaining = HuntersAlive,
-                                    HuntersTotal = TotalHunters,
-                                    PropsRemaining = PropsAlive,
-                                    PropsTotal = TotalProps,
-                                    
-                                }, player.Id);
-                        }
+                        _sender.SendSingleData(FromServerToClientPackets.PlayerDeath,
+                            new PlayerDeathFromServerToClientData
+                            {
+                                PlayerId = id,
+                                HuntersRemaining = HuntersAlive,
+                                HuntersTotal = TotalHunters,
+                                PropsRemaining = PropsAlive,
+                                PropsTotal = TotalProps,
+                                
+                            }, player.Id);
                     }
 
                     if (deadProp != null)
@@ -411,7 +410,10 @@ namespace PropHunt.HKMP
             });
         }
 
-        private void IntervalTimerElapse(object stateInfo)
+        /// <summary>
+        /// Handle when the interval timer elapses.
+        /// </summary>
+        private void IntervalTimerElapse(object _)
         {
             _sender.BroadcastSingleData(FromServerToClientPackets.UpdateRoundTimer, new UpdateRoundTimerFromServerToClientData
             {
@@ -428,7 +430,10 @@ namespace PropHunt.HKMP
             }
         }
 
-        private void RoundTimerElapse(object stateInfo)
+        /// <summary>
+        /// Handle when the round timer ends.
+        /// </summary>
+        private void RoundTimerElapse(object _)
         {
             EndRound(PropsAlive <= 0);
         }
@@ -447,33 +452,6 @@ namespace PropHunt.HKMP
             {
                 HuntersWin = huntersWin,
             });
-        }
-
-        /// <summary>
-        /// Handle a player's death.
-        /// </summary>
-        /// <param name="playerId">The player that died</param>
-        private void PlayerDeath(ushort playerId)
-        {
-            
-        }
-
-        /// <summary>
-        /// Called when a player connects to the server.
-        /// </summary>
-        /// <param name="player">The player that connected</param>
-        private void OnPlayerConnect(IServerPlayer player)
-        {
-            
-        }
-
-        /// <summary>
-        /// Called when a player disconnects from the server.
-        /// </summary>
-        /// <param name="player">The player that disconnected</param>
-        private void OnPlayerDisconnect(IServerPlayer player)
-        {
-            
         }
     }
 }

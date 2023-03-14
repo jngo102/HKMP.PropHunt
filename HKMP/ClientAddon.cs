@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Linq;
 using GlobalEnums;
 using Hkmp.Api.Client;
 using Hkmp.Api.Client.Networking;
@@ -9,8 +7,9 @@ using Modding.Utils;
 using PropHunt.Behaviors;
 using PropHunt.UI;
 using Satchel;
+using System.Collections;
+using System.Linq;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 using USceneManager = UnityEngine.SceneManagement.SceneManager;
 
@@ -56,45 +55,52 @@ namespace PropHunt.HKMP
             _receiver.RegisterPacketHandler<AssignTeamFromServerToClientData>(FromServerToClientPackets.AssignTeam,
                 packetData =>
                 {
-                    ModHooks.BeforePlayerDeadHook += BroadcastPlayerDeath;
-
-                    var propManager = HeroController.instance.GetComponent<LocalPropManager>();
-                    var hunter = HeroController.instance.GetComponent<Hunter>();
-                    var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
-                    PlayerData.instance.isInvincible = false;
-
-                    if (packetData.IsHunter)
+                    IEnumerator HazardRespawnThenAssignTeam()
                     {
-                        clientApi.ClientManager.ChangeTeam(Team.Grimm);
+                        ModHooks.BeforePlayerDeadHook += BroadcastPlayerDeath;
 
-                        propManager.enabled = false;
-                        hunter.enabled = true;
+                        var propManager = HeroController.instance.GetComponent<LocalPropManager>();
+                        var hunter = HeroController.instance.GetComponent<Hunter>();
+                        var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
+                        PlayerData.instance.isInvincible = false;
 
-                        if (packetData.InGrace)
+                        GameManager.instance.LoadScene(USceneManager.GetActiveScene().name);
+                        PlayerData.instance.SetHazardRespawn(Object.FindObjectOfType<HazardRespawnMarker>());
+                        yield return HeroController.instance.HazardRespawn();
+
+                        if (packetData.IsHunter)
                         {
-                            hunter.BeginGracePeriod();
+                            clientApi.ClientManager.ChangeTeam(Team.Grimm);
+
+                            propManager.enabled = false;
+                            hunter.enabled = true;
+
+                            if (packetData.InGrace)
+                            {
+                                hunter.BeginGracePeriod();
+                            }
+
+                            PropHunt.Instance.Log("You are a HUNTER");
+                            ui.SetPropHuntMessage("You are a hunter!");
+
+                            HeroController.instance.SetMPCharge(198);
+                            GameManager.instance.soulOrb_fsm.SendEvent("MP GAIN");
+
+                            On.Breakable.Break += OnBreakableBreak;
                         }
+                        else
+                        {
+                            clientApi.ClientManager.ChangeTeam(Team.Moss);
 
-                        PropHunt.Instance.Log("You are a HUNTER");
-                        ui.SetPropHuntMessage("You are a hunter!");
+                            hunter.enabled = false;
+                            propManager.enabled = true;
 
-                        HeroController.instance.SetMPCharge(198);
-                        GameManager.instance.soulOrb_fsm.SendEvent("MP GAIN");
-
-                        On.Breakable.Break += OnBreakableBreak;
-                    }
-                    else
-                    {
-                        clientApi.ClientManager.ChangeTeam(Team.Moss);
-
-                        hunter.enabled = false;
-                        propManager.enabled = true;
-
-                        PropHunt.Instance.Log("You are a PROP");
-                        ui.SetPropHuntMessage("You are a prop!");
+                            PropHunt.Instance.Log("You are a PROP");
+                            ui.SetPropHuntMessage("You are a prop!");
+                        }
                     }
 
-                    USceneManager.LoadScene(USceneManager.GetActiveScene().name, LoadSceneMode.Single);
+                    GameManager.instance.StartCoroutine(HazardRespawnThenAssignTeam());
                 });
 
             _receiver.RegisterPacketHandler<EndRoundFromServerToClientData>(FromServerToClientPackets.EndRound,
@@ -338,6 +344,11 @@ namespace PropHunt.HKMP
                 new BroadcastPlayerDeathFromClientToServerData());
         }
 
+        /// <summary>
+        /// Broadcast the local player's prop's position along the x- and y-axes.
+        /// </summary>
+        /// <param name="x">The x component of the prop's position</param>
+        /// <param name="y">The y component of the prop's position</param>
         public static void BroadcastPropPositionXY(float x, float y)
         {
             _sender.SendSingleData(FromClientToServerPackets.BroadcastPropPositionXY,
@@ -348,6 +359,10 @@ namespace PropHunt.HKMP
                 });
         }
 
+        /// <summary>
+        /// Broadcast the local player's prop's position along the z-axis.
+        /// </summary>
+        /// <param name="z">The z component of the prop's position</param>
         public static void BroadcastPropPositionZ(float z)
         {
             _sender.SendSingleData(FromClientToServerPackets.BroadcastPropPositionZ,
@@ -357,6 +372,10 @@ namespace PropHunt.HKMP
                 });
         }
 
+        /// <summary>
+        /// Broadcast the local player's prop's rotation.
+        /// </summary>
+        /// <param name="rotation">The prop's rotation</param>
         public static void BroadcastPropRotation(float rotation)
         {
             _sender.SendSingleData(FromClientToServerPackets.BroadcastPropRotation,
@@ -366,6 +385,10 @@ namespace PropHunt.HKMP
                 });
         }
 
+        /// <summary>
+        /// Broadcast the local player's prop's scale.
+        /// </summary>
+        /// <param name="scale">The prop's scale</param>
         public static void BroadcastPropScale(float scale)
         {
             _sender.SendSingleData(FromClientToServerPackets.BroadcastPropScale,
@@ -418,6 +441,10 @@ namespace PropHunt.HKMP
                 });
         }
 
+        /// <summary>
+        /// End a round.
+        /// </summary>
+        /// <param name="huntersWin">Whether the hunters won the round</param>
         public static void EndRound(bool huntersWin)
         {
             _sender.SendSingleData(FromClientToServerPackets.EndRound,
@@ -427,6 +454,11 @@ namespace PropHunt.HKMP
                 });
         }
 
+        /// <summary>
+        /// Begin a round.
+        /// </summary>
+        /// <param name="graceTime">The duration of the initial grace period in seconds</param>
+        /// <param name="roundTime">The duration of the round</param>
         public static void StartRound(byte graceTime, ushort roundTime)
         {
             _sender.SendSingleData(FromClientToServerPackets.StartRound,

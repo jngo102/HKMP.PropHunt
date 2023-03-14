@@ -28,22 +28,19 @@ namespace PropHunt.Behaviors
         public void SetPropSprite(Sprite sprite)
         {
             if (_propSprite == null) return;
-
-            PropHunt.Instance.Log("Sprite null? " + (sprite == null));
+            
             _propSprite.sprite = sprite;
 
             if (sprite == null)
             {
-                PropHunt.Instance.Log("Null sprite, showing player.");
                 ResetPropTransform();
                 _meshRend.enabled = true;
                 _username.SetActive(true);
                 return;
             }
-
-            PropHunt.Instance.Log("Non null sprite, hiding player.");
+            
             _meshRend.enabled = false;
-            if (HeroController.instance.GetComponent<LocalPropManager>()?.PropSprite != null)
+            if (!HeroController.instance.GetComponent<LocalPropManager>().enabled)
             {
                 _username.SetActive(false);
             }
