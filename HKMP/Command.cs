@@ -1,6 +1,5 @@
 ﻿using Hkmp.Api.Command.Client;
 using System.Linq;
-using PropHunt.Events;
 
 namespace PropHunt.HKMP
 {
@@ -22,26 +21,24 @@ namespace PropHunt.HKMP
 
         public void Execute(string[] arguments)
         {
-            var pipe = PropHunt.PipeClient;
-
-            uint gracePeriod = 15;
-            uint roundTime = 120;
+            byte graceTime= 15;
+            ushort roundTime = 120;
             if (arguments.Length > 3)
             {
-                roundTime = uint.Parse(arguments[3]);
+                roundTime = ushort.Parse(arguments[3]);
             }
             if (arguments.Length > 2)
             {
-                gracePeriod = uint.Parse(arguments[2]);
+                graceTime = byte.Parse(arguments[2]);
             }
 
             if (_activateCommands.Contains(arguments[1].ToLower()))
             {
-                pipe.SendToServer(new StartRoundEvent { GracePeriod = gracePeriod, RoundTime = roundTime });
+                PropHuntClientAddon.StartRound(graceTime, roundTime);
             }
             else if (_deactivateCommands.Contains(arguments[1].ToLower()))
             {
-                pipe.SendToServer(new EndRoundEvent { HuntersWin = false });
+                PropHuntClientAddon.EndRound(false);
             }
         }
     }

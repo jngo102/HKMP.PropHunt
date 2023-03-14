@@ -74,7 +74,7 @@ namespace PropHunt.UI
         /// Set the remaining amount of grace time for Hunters showed in this text.
         /// </summary>
         /// <param name="seconds">The amount of grace time left in seconds</param>
-        public void SetGraceTimeRemaining(uint seconds)
+        public void SetGraceTimeRemaining(byte seconds)
         {
             if (seconds <= 0)
             {
@@ -99,7 +99,7 @@ namespace PropHunt.UI
         /// Set the remaining amount of time in the current round showed in this text.
         /// </summary>
         /// <param name="seconds">The amount of time left in the round in seconds</param>
-        public void SetTimeRemainingInRound(uint seconds)
+        public void SetTimeRemainingInRound(ushort seconds)
         {
             if (seconds <= 0)
             {

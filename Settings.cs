@@ -7,6 +7,6 @@ namespace PropHunt
     public class GlobalSettings
     {
         [JsonConverter(typeof(PlayerActionSetConverter))]
-        public PropActions Bindings { get; set; } = new();
+        public PropActions Bindings = new();
     }
 }

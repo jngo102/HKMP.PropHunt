@@ -7,7 +7,6 @@ using Satchel.BetterMenus;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using HkmpPouch;
 using Modding.Utils;
 using UnityEngine;
 using UObject = UnityEngine.Object;
@@ -17,8 +16,7 @@ namespace PropHunt
     internal class PropHunt : Mod, IGlobalSettings<GlobalSettings>, ICustomMenuMod
     {
         internal static PropHunt Instance { get; private set; }
-
-        internal static PipeClient PipeClient;
+        
         internal static PropHuntClientAddon Client;
         internal static PropHuntServerAddon Server;
 
@@ -49,19 +47,8 @@ namespace PropHunt
                 Client = new PropHuntClientAddon();
                 ClientAddon.RegisterAddon(Client);
             }
-
-            PipeClient ??= new PipeClient(Name);
                 
-            PipeClient.ServerCounterPartAvailable(serverAddonPresent =>
-            {
-                if (serverAddonPresent)
-                {
-                    
-                }
-            });
-
             GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
-            PipeClient.ClientApi?.CommandManager?.RegisterCommand(new PropHuntCommand());
         }
 
         public void OnLoadGlobal(GlobalSettings s) => Settings = s;

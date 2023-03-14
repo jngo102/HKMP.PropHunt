@@ -1,14 +1,10 @@
 using GlobalEnums;
-using HkmpPouch;
-using PropHunt.Events;
 using PropHunt.Input;
 using PropHunt.Util;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using Hkmp.Api.Client;
 using PropHunt.HKMP;
 using UnityEngine;
 
@@ -53,7 +49,6 @@ namespace PropHunt.Behaviors
         private PlayerData _pd;
         private GameObject _username;
         public GameObject Prop { get; private set; }
-        private PipeClient _pipe;
         private SpriteRenderer _propSprite;
         public Sprite PropSprite => _propSprite.sprite;
         private SpriteRenderer _iconRenderer;
@@ -84,8 +79,6 @@ namespace PropHunt.Behaviors
             _iconRenderer = icon.AddComponent<SpriteRenderer>();
             _iconRenderer.sortingOrder = 100;
 
-            _pipe = PropHunt.PipeClient;
-
             _origColSize = _col.size;
             _origHealth = _pd.health;
             _origMaxHealth = _pd.maxHealth;
@@ -93,7 +86,7 @@ namespace PropHunt.Behaviors
 
             var hkmpAssembly = AppDomain.CurrentDomain.GetAssemblyByName("HKMP");
             _chatBoxType = hkmpAssembly.GetType("Hkmp.Ui.Chat.ChatBox");
-            _chatBox = Convert.ChangeType(PropHunt.PipeClient.ClientApi.UiManager.ChatBox, _chatBoxType);
+            _chatBox = Convert.ChangeType(PropHuntClientAddon.Api.UiManager.ChatBox, _chatBoxType);
         }
 
         private IEnumerator Start()
@@ -189,7 +182,7 @@ namespace PropHunt.Behaviors
         private void EnableInput(bool enable)
         {
             if (enable)
-            {
+            { 
                 On.HeroController.CanCast -= RemoveCast;
                 On.HeroController.CanDreamNail -= RemoveDreamNail;
                 On.HeroController.CanFocus -= RemoveFocus;
@@ -309,8 +302,7 @@ namespace PropHunt.Behaviors
             }
 
             _propState = PropState.Free;
-
-            string spriteName = "";
+            
             var breakSprite = closestBreakable?.GetComponentInChildren<SpriteRenderer>().sprite;
             var breakCol = closestBreakable?.GetComponentInChildren<BoxCollider2D>();
             _propSprite.sprite = breakSprite;
@@ -345,7 +337,7 @@ namespace PropHunt.Behaviors
                 return;
             }
 
-            PropHuntClientAddon.SendPropSpritePacket(PropSprite, Prop.transform.localPosition, Prop.transform.localRotation.eulerAngles.z, Prop.transform.localScale.x);
+            PropHuntClientAddon.BroadcastPropSprite(PropSprite, Prop.transform.localPosition, Prop.transform.localRotation.eulerAngles.z, Prop.transform.localScale.x);
         }
 
         /// <summary>
@@ -362,9 +354,7 @@ namespace PropHunt.Behaviors
                     var clampedVector = Vector2.ClampMagnitude(Prop.transform.localPosition, XY_MAX_MAGNITUDE);
                     var clampedPos = new Vector3(clampedVector.x, clampedVector.y, Prop.transform.localPosition.z);
                     Prop.transform.localPosition = clampedPos;
-                    _pipe.Broadcast(
-                        new UpdatePropPositionXYEvent
-                            { X = Prop.transform.localPosition.x, Y = Prop.transform.localPosition.y }, true, false);
+                    PropHuntClientAddon.BroadcastPropPositionXY(Prop.transform.localPosition.x, Prop.transform.localPosition.y);
                     break;
                 case PropState.TranslateZ:
                     float inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0
@@ -375,7 +365,7 @@ namespace PropHunt.Behaviors
                     clampedPos = new Vector3(Prop.transform.localPosition.x, Prop.transform.localPosition.y,
                         Mathf.Clamp(Prop.transform.localPosition.z, MIN_Z, MAX_Z));
                     Prop.transform.localPosition = clampedPos;
-                    _pipe.Broadcast(new UpdatePropPositionZEvent { Z = Prop.transform.localPosition.z }, true, false);
+                    PropHuntClientAddon.BroadcastPropPositionZ(Prop.transform.localPosition.z);
                     break;
                 case PropState.Rotate:
                     inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0
@@ -391,9 +381,7 @@ namespace PropHunt.Behaviors
                         _iconRenderer.flipX = false;
                     }
                     Prop.transform.Rotate(0, 0, rotateZ);
-                    _pipe.Broadcast(
-                        new UpdatePropRotationEvent { Rotation = Prop.transform.localRotation.eulerAngles.z }, true,
-                        false);
+                    PropHuntClientAddon.BroadcastPropRotation(Prop.transform.localRotation.eulerAngles.z);
                     break;
                 case PropState.Scale:
                     inputValue = Mathf.Abs(_heroInput.moveVector.Value.y) > 0
@@ -412,7 +400,7 @@ namespace PropHunt.Behaviors
                     var scaleFactor = Prop.transform.localScale.x + inputValue * Time.deltaTime * SCALE_SPEED;
                     scaleFactor = Mathf.Clamp(scaleFactor, MIN_SCALE, MAX_SCALE);
                     Prop.transform.localScale = Vector3.one * scaleFactor;
-                    _pipe.Broadcast(new UpdatePropScaleEvent { Scale = Prop.transform.localScale.x }, true, false);
+                    PropHuntClientAddon.BroadcastPropScale(Prop.transform.localScale.x);
                     break;
             }
         }
@@ -438,9 +426,14 @@ namespace PropHunt.Behaviors
 
             _username.SetActive(true);
 
-            if (!_pipe.ClientApi.NetClient.IsConnected) return;
-
-            PropHuntClientAddon.SendPropSpritePacket(null, Vector3.zero, 0, 1);
+            try
+            {
+                PropHuntClientAddon.BroadcastPropSprite(null, Vector3.zero, 0, 1);
+            }
+            catch (InvalidOperationException)
+            {
+                PropHunt.Instance.Log("Not connected to server, skipping broadcast.");
+            }
         }
 
         /// <summary>

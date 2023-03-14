@@ -123,9 +123,6 @@
 		<Reference Include="HKMP">
 			<HintPath>$(ModsPath1)/HKMP/HKMP.dll</HintPath>
 		</Reference>
-		<Reference Include="HkmpPouch">
-			<HintPath>$(ModsPath1)/HkmpPouch/HkmpPouch.dll</HintPath>
-		</Reference>
 		<Reference Include="Satchel">
 			<HintPath>$(ModsPath1)/Satchel/Satchel.dll</HintPath>
 		</Reference>
