@@ -29,6 +29,7 @@ namespace PropHunt.Behaviors
         {
             if (_propSprite == null) return;
 
+            PropHunt.Instance.Log("Sprite null? " + (sprite == null));
             _propSprite.sprite = sprite;
 
             if (sprite == null)

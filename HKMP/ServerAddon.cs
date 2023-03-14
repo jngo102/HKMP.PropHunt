@@ -1,14 +1,13 @@
 using Hkmp.Api.Server;
 using HkmpPouch;
 using PropHunt.Events;
+using PropHunt.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Remoting.Messaging;
 using System.Threading;
 using System.Threading.Tasks;
-using PropHunt.Util;
 using Random = System.Random;
 
 namespace PropHunt.HKMP
@@ -110,6 +109,7 @@ namespace PropHunt.HKMP
             var sender = serverApi.NetServer.GetNetworkSender<FromServerToClientPackets>(Instance);
             var receiver = serverApi.NetServer.GetNetworkReceiver<FromClientToServerPackets>(Instance, serverPacket =>
             {
+                Console.WriteLine("Received packet: " + serverPacket);
                 return serverPacket switch
                 {
                     FromClientToServerPackets.BroadcastPropSprite => new PropSpriteFromClientToServerData(),
@@ -125,7 +125,8 @@ namespace PropHunt.HKMP
                         var playersInScene = serverApi.ServerManager.Players
                             .Where(p => p.CurrentScene == player.CurrentScene && p != player).Select(p => p.Id)
                             .ToArray();
-                        
+
+                        _pipe.Logger.Info($"Relaying prop sprite {packetData.SpriteName} to {playersInScene.Length} players");
                         sender.SendSingleData(FromServerToClientPackets.UpdatePropSprite, new PropSpriteFromServerToClientData
                         {
                             PlayerId = id,

@@ -178,9 +178,7 @@ namespace PropHunt.HKMP
             if (heroPropManager.PropSprite == null) return;
 
             var propTransform = heroPropManager.Prop.transform;
-
-            //PropHunt.Instance.Log($"Informing player {player.Id} that prop sprite is: {heroPropManager.PropSprite?.name}");
-
+            
             SendPropSpritePacket(heroPropManager.PropSprite, propTransform.localPosition, propTransform.localRotation.eulerAngles.z, propTransform.localScale.x);
         }
 
@@ -405,16 +403,20 @@ namespace PropHunt.HKMP
         {
             if (sprite == null)
             {
+                PropHunt.Instance.Log("Sending empty sprite");
                 _sender.SendSingleData(FromClientToServerPackets.BroadcastPropSprite, new PropSpriteFromClientToServerData
                 {
                     SpriteName = string.Empty,
                     NumBytes = 0,
                     SpriteBytes = null,
+                    PositionXY = new Hkmp.Math.Vector2(position.x, position.y),
+                    PositionZ = position.z,
+                    RotationZ = rotationZ,
+                    Scale = scale,
                 });
                 return;
             }
-
-
+            
             var texture = SpriteUtils.ExtractTextureFromSprite(sprite);
             var bytes = texture.EncodeToPNG();
             _sender.SendSingleData(FromClientToServerPackets.BroadcastPropSprite, new PropSpriteFromClientToServerData

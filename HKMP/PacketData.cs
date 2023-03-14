@@ -23,17 +23,17 @@ namespace PropHunt.HKMP
             PlayerId = packet.ReadUShort();
             SpriteName = packet.ReadString();
             NumBytes = packet.ReadInt();
-            if (NumBytes <= 0)
-            {
-                SpriteBytes = null;
-            }
-            else
+            if (NumBytes > 0)
             {
                 SpriteBytes = new byte[NumBytes];
                 for (int i = 0; i < SpriteBytes.Length; i++)
                 {
                     SpriteBytes[i] = packet.ReadByte();
                 }
+            }
+            else
+            {
+                SpriteBytes = null;
             }
             PositionXY = packet.ReadVector2();
             PositionZ = packet.ReadFloat();
@@ -45,10 +45,13 @@ namespace PropHunt.HKMP
         {
             packet.Write(PlayerId);
             packet.Write(SpriteName);
-            packet.Write(SpriteBytes.Length);
-            for (int i = 0; i < SpriteBytes.Length; i++)
+            packet.Write(NumBytes);
+            if (NumBytes > 0)
             {
-                packet.Write(SpriteBytes[i]);
+                foreach (var b in SpriteBytes)
+                {
+                    packet.Write(b);
+                }
             }
             packet.Write(PositionXY);
             packet.Write(PositionZ);
@@ -80,17 +83,17 @@ namespace PropHunt.HKMP
         {
             SpriteName = packet.ReadString();
             NumBytes = packet.ReadInt();
-            if (NumBytes <= 0)
-            {
-                SpriteBytes = null;
-            }
-            else
+            if (NumBytes > 0)
             {
                 SpriteBytes = new byte[NumBytes];
                 for (int i = 0; i < SpriteBytes.Length; i++)
                 {
                     SpriteBytes[i] = packet.ReadByte();
                 }
+            }
+            else
+            {
+                SpriteBytes = null;
             }
             PositionXY = packet.ReadVector2();
             PositionZ = packet.ReadFloat();
@@ -101,10 +104,13 @@ namespace PropHunt.HKMP
         public void WriteData(IPacket packet)
         {
             packet.Write(SpriteName);
-            packet.Write(SpriteBytes.Length);
-            for (int i = 0; i < SpriteBytes.Length; i++)
+            packet.Write(NumBytes);
+            if (NumBytes > 0)
             {
-                packet.Write(SpriteBytes[i]);
+                foreach (var b in SpriteBytes)
+                {
+                    packet.Write(b);
+                }
             }
             packet.Write(PositionXY);
             packet.Write(PositionZ);
