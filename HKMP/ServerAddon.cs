@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Modding;
 using Random = System.Random;
 
 namespace PropHunt.HKMP
@@ -85,7 +86,8 @@ namespace PropHunt.HKMP
                 Console.WriteLine("Received packet: " + serverPacket);
                 return serverPacket switch
                 {
-                    FromClientToServerPackets.BroadcastPlayerDeath => new BroadcastPlayerDeathFromClientToServerData(),
+                    FromClientToServerPackets.BroadcastHunterDeath => new BroadcastHunterDeathFromClientToServerData(),
+                    FromClientToServerPackets.BroadcastPropDeath => new BroadcastPropDeathFromClientToServerData(),
                     FromClientToServerPackets.BroadcastPropPositionXY=> new BroadcastPropPositionXYFromClientToServerData(),
                     FromClientToServerPackets.BroadcastPropPositionZ => new BroadcastPropPositionZFromClientToServerData(),
                     FromClientToServerPackets.BroadcastPropRotation => new BroadcastPropRotationFromClientToServerData(),
@@ -97,64 +99,65 @@ namespace PropHunt.HKMP
                 };
             });
 
-            _receiver.RegisterPacketHandler<BroadcastPlayerDeathFromClientToServerData>(
-                FromClientToServerPackets.BroadcastPlayerDeath,
-                (id, packetData) =>
+            _receiver.RegisterPacketHandler<BroadcastHunterDeathFromClientToServerData>(
+                FromClientToServerPackets.BroadcastHunterDeath,
+                (id, _) =>
                 {
                     if (!_roundStarted) return;
 
-                    var deadProp = _livingProps.FirstOrDefault(prop => prop.Id == id);
-                    var deadHunter = _livingHunters.FirstOrDefault(hunter => hunter.Id == id);
-
-                    if (deadProp != null)
+                    if (serverApi.ServerManager.TryGetPlayer(id, out var player))
                     {
-                        _livingProps.Remove(deadProp);
+                        var random = new Random();
+                        int convoNum = random.Next(0, 4);
+                        _sender.BroadcastSingleData(FromServerToClientPackets.HunterDeath,
+                            new HunterDeathFromServerToClientData
+                            {
+                                PlayerId = id,
+                                ConvoNum = (byte)convoNum,
+                            });
+                    }
+                });
+
+            _receiver.RegisterPacketHandler<BroadcastPropDeathFromClientToServerData>(
+                FromClientToServerPackets.BroadcastPropDeath,
+                (id, _) =>
+                {
+                    if (!_roundStarted) return;
+
+                    if (serverApi.ServerManager.TryGetPlayer(id, out var player))
+                    {
+                        _livingProps.Remove(player);
                         if (PropsAlive <= 0)
                         {
                             EndRound(true);
                             return;
                         }
 
+                        var playersExcludingSender =
+                            serverApi.ServerManager.Players.Where(p => p.Id != id).ToList();
+                        foreach (var p in playersExcludingSender)
+                        {
+                            _sender.SendSingleData(FromServerToClientPackets.PropDeath,
+                                new PropDeathFromServerToClientData
+                                {
+                                    PlayerId = id,
+                                    PropsRemaining = PropsAlive,
+                                    PropsTotal = TotalProps,
+
+                                }, p.Id);
+                        }
+
                         _sender.SendSingleData(FromServerToClientPackets.AssignTeam, new AssignTeamFromServerToClientData
                         {
                             IsHunter = true,
                         }, id);
-                    }
 
-                    if (deadHunter != null)
-                    {
-                        _livingHunters.Remove(deadHunter);
-                        if (HuntersAlive <= 0)
-                        {
-                            EndRound(false);
-                            return;
-                        }
-                    }
-
-                    var playersExcludingSender =
-                        serverApi.ServerManager.Players.Where(player => player.Id != id).ToList();
-                    foreach (var player in playersExcludingSender)
-                    {
-                        _sender.SendSingleData(FromServerToClientPackets.PlayerDeath,
-                            new PlayerDeathFromServerToClientData
-                            {
-                                PlayerId = id,
-                                HuntersRemaining = HuntersAlive,
-                                HuntersTotal = TotalHunters,
-                                PropsRemaining = PropsAlive,
-                                PropsTotal = TotalProps,
-                                
-                            }, player.Id);
-                    }
-
-                    if (deadProp != null)
-                    {
-                        _allHunters.Add(deadProp);
-                        _livingHunters.Add(deadProp);
+                        _allHunters.Add(player);
+                        _livingHunters.Add(player);
                     }
 
                     Console.WriteLine(
-                        $"Player {id} died: {_livingHunters.Count}/{_allHunters.Count} hunters alive,\t{_livingProps.Count}/{_allProps.Count} props alive");
+                        $"Player {id} died:\t{PropsAlive}/{TotalProps} props alive");
                 });
 
             _receiver.RegisterPacketHandler<BroadcastPropPositionXYFromClientToServerData>(
@@ -260,13 +263,13 @@ namespace PropHunt.HKMP
                 });
 
             _receiver.RegisterPacketHandler<EndRoundFromClientToServerData>(FromClientToServerPackets.EndRound,
-                (id, packetData) =>
+                (_, _) =>
                 {
                     EndRound(PropsAlive <= 0);
                 });
 
             _receiver.RegisterPacketHandler<StartRoundFromClientToServerData>(FromClientToServerPackets.StartRound,
-                (id, packetData) =>
+                (_, packetData) =>
                 {
                     byte graceTime = packetData.GraceTime;
                     ushort roundTime = packetData.RoundTime;
@@ -382,24 +385,12 @@ namespace PropHunt.HKMP
                             return;
                         }
                     }
-                    else if (disconnectedHunter != null)
-                    {
-                        _livingHunters.Remove(disconnectedHunter);
-
-                        if (HuntersAlive <= 0)
-                        {
-                            EndRound(false);
-                            return;
-                        }
-                    }
 
                     _sender.BroadcastSingleData(FromServerToClientPackets.PlayerLeftGame, new PlayerLeftGameFromServerToClientData
                     {
                         PlayerId = player.Id,
-                        HuntersRemaining = HuntersAlive,
-                        HuntersTotal = TotalHunters,
-                        PropsRemaining = PropsAlive,
-                        PropsTotal = TotalProps,
+                        PropsRemaining = disconnectedHunter != null ? (ushort)0 : PropsAlive,
+                        PropsTotal = disconnectedHunter != null ? (ushort)0 : TotalProps,
                     });
 
                     Console.WriteLine(

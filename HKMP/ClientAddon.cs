@@ -26,6 +26,10 @@ namespace PropHunt.HKMP
         private static IClientAddonNetworkSender<FromClientToServerPackets> _sender;
         private static IClientAddonNetworkReceiver<FromServerToClientPackets> _receiver;
 
+        private string _deathUsername;
+        private ushort _propsRemaining;
+        private ushort _propsTotal;
+
         public override void Initialize(IClientApi clientApi)
         {
             Instance = this;
@@ -39,8 +43,9 @@ namespace PropHunt.HKMP
                 {
                     FromServerToClientPackets.AssignTeam => new AssignTeamFromServerToClientData(),
                     FromServerToClientPackets.EndRound => new EndRoundFromServerToClientData(),
-                    FromServerToClientPackets.PlayerDeath => new PlayerDeathFromServerToClientData(),
-                    FromServerToClientPackets.PlayerLeftGame => new PlayerDeathFromServerToClientData(),
+                    FromServerToClientPackets.HunterDeath => new HunterDeathFromServerToClientData(),
+                    FromServerToClientPackets.PropDeath => new PropDeathFromServerToClientData(),
+                    FromServerToClientPackets.PlayerLeftGame => new PlayerLeftGameFromServerToClientData(),
                     FromServerToClientPackets.UpdateGraceTimer => new UpdateGraceTimerFromServerToClientData(),
                     FromServerToClientPackets.UpdateRoundTimer => new UpdateRoundTimerFromServerToClientData(),
                     FromServerToClientPackets.UpdatePropPositionXY => new UpdatePropPositionXYFromServerToClientData(),
@@ -81,7 +86,7 @@ namespace PropHunt.HKMP
                             }
 
                             PropHunt.Instance.Log("You are a HUNTER");
-                            ui.SetPropHuntMessage("You are a hunter!");
+                            ui.SetPropHuntMessage("TEAM_HUNTER");
 
                             HeroController.instance.SetMPCharge(198);
                             GameManager.instance.soulOrb_fsm.SendEvent("MP GAIN");
@@ -95,8 +100,10 @@ namespace PropHunt.HKMP
                             hunter.enabled = false;
                             propManager.enabled = true;
 
+                            propManager.ClearProp();
+
                             PropHunt.Instance.Log("You are a PROP");
-                            ui.SetPropHuntMessage("You are a prop!");
+                            ui.SetPropHuntMessage("TEAM_PROP");
                         }
                     }
 
@@ -106,8 +113,16 @@ namespace PropHunt.HKMP
             _receiver.RegisterPacketHandler<EndRoundFromServerToClientData>(FromServerToClientPackets.EndRound,
                 packetData =>
                 {
-                    var propManager = HeroController.instance.GetComponent<LocalPropManager>();
-                    var hunter = HeroController.instance.GetComponent<Hunter>();
+                    IEnumerator DelayResetTeam(float waitTime)
+                    {
+                        yield return new WaitForSeconds(waitTime);
+                        clientApi.ClientManager.ChangeTeam(Team.None);
+                    }
+
+                    var hc = HeroController.instance;
+                    var propManager = hc.GetComponent<LocalPropManager>();
+                    var hunter = hc.GetComponent<Hunter>();
+                    hc.GetComponent<tk2dSpriteAnimator>().Play("Idle");
 
                     ModHooks.BeforePlayerDeadHook -= BroadcastPlayerDeath;
 
@@ -116,8 +131,10 @@ namespace PropHunt.HKMP
                     blankerCtrl.SendEvent("FADE OUT INSTANT");
 
                     PlayerData.instance.isInvincible = true;
-
-                    clientApi.ClientManager.ChangeTeam(Team.None);
+                    
+                    // In case the change team packet arrives after the end round packet, e.g.
+                    // when multiple prop players are killed at once.
+                    GameManager.instance.StartCoroutine(DelayResetTeam(1));
 
                     hunter.enabled = false;
                     propManager.enabled = true;
@@ -132,27 +149,41 @@ namespace PropHunt.HKMP
                     if (packetData.HuntersWin)
                     {
                         PropHunt.Instance.Log("HUNTERS WIN");
-                        ui.SetPropHuntMessage("Hunters win!");
+                        ui.SetPropHuntMessage("HUNTERS_WIN");
                     }
                     else
                     {
                         PropHunt.Instance.Log("PROPS WIN");
-                        ui.SetPropHuntMessage("Props win!");
+                        ui.SetPropHuntMessage("PROPS_WIN");
                     }
                 });
 
-            _receiver.RegisterPacketHandler<PlayerDeathFromServerToClientData>(FromServerToClientPackets.PlayerDeath,
+            _receiver.RegisterPacketHandler<HunterDeathFromServerToClientData>(FromServerToClientPackets.HunterDeath,
                 packetData =>
                 {
                     if (clientApi.ClientManager.TryGetPlayer(packetData.PlayerId, out var player))
                     {
-                        string text = $"Player {player.Username} has died!" +
-                                      $"\nProps remaining: {packetData.PropsRemaining}/{packetData.PropsTotal}" +
-                                      $"\nHunters remaining: {packetData.HuntersRemaining}/{packetData.HuntersTotal}";
-
-                        PropHunt.Instance.Log(text);
+                        _deathUsername = player.Username;
                         var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
-                        ui.SetPropHuntMessage(text);
+                        string text = $"Hunter {player.Username} has died!";
+                        ui.SetPropHuntMessage("HUNTER_DEATH_" + packetData.ConvoNum);
+                        PropHunt.Instance.Log(text);
+                    }
+                });
+
+            _receiver.RegisterPacketHandler<PropDeathFromServerToClientData>(FromServerToClientPackets.PropDeath,
+                packetData =>
+                {
+                    if (clientApi.ClientManager.TryGetPlayer(packetData.PlayerId, out var player))
+                    {
+                        _deathUsername = player.Username;
+                        _propsRemaining = packetData.PropsRemaining;
+                        _propsTotal = packetData.PropsTotal;
+                        var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
+                        string text = $"Player {player.Username} has died!" +
+                                      $"\nProps remaining: {_propsRemaining}/{_propsTotal}";
+                        ui.SetPropHuntMessage("PLAYER_DEATH");
+                        PropHunt.Instance.Log(text);
                     }
                 });
 
@@ -161,13 +192,15 @@ namespace PropHunt.HKMP
                 {
                     if (clientApi.ClientManager.TryGetPlayer(packetData.PlayerId, out var player))
                     {
-                        string text = $"Player {player.Username} has left the server!" +
-                                      $"\nProps remaining: {packetData.PropsRemaining}/{packetData.PropsTotal}" +
-                                      $"\nHunters remaining: {packetData.HuntersRemaining}/{packetData.HuntersTotal}";
+                        _deathUsername = player.Username;
+                        _propsRemaining = packetData.PropsRemaining;
+                        _propsTotal = packetData.PropsTotal;
+                        string text = $"Player {_deathUsername} has left the server!" +
+                                      $"\nProps remaining: {_propsRemaining}/{_propsTotal}";
 
                         PropHunt.Instance.Log(text);
                         var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
-                        ui.SetPropHuntMessage(text);
+                        ui.SetPropHuntMessage("PLAYER_LEFT");
                     }
                 });
 
@@ -260,6 +293,37 @@ namespace PropHunt.HKMP
             clientApi.ClientManager.PlayerEnterSceneEvent += OnRemotePlayerEnterScene;
 
             GameManager.instance.StartCoroutine(AddRemotePropManagerComponentsToPlayerPrefabs());
+
+            ModHooks.LanguageGetHook += OnLanguageGet;
+        }
+
+        private string OnLanguageGet(string key, string sheetTitle, string orig)
+        {
+            switch (key)
+            {
+                case "PLAYER_DEATH":
+                    return $"Player {_deathUsername} has died!\nProps remaining: {_propsRemaining}/{_propsTotal}";
+                case "PLAYER_LEFT":
+                    return $"Player {_deathUsername} has left the server!\nProps remaining: {_propsRemaining}/{_propsTotal}";
+                case "TEAM_HUNTER":
+                    return "You are a hunter!";
+                case "TEAM_PROP":
+                    return "You are a prop!";
+                case "HUNTERS_WIN":
+                    return "Hunters win!";
+                case "PROPS_WIN":
+                    return "Props win!";
+                case "HUNTER_DEATH_0":
+                    return $"Hunter {_deathUsername} died! Maybe they should learn the room layout better...";
+                case "HUNTER_DEATH_1":
+                    return $"Hunter {_deathUsername} foolishly hit too many non-props and perished!";
+                case "HUNTER_DEATH_2":
+                    return $"Hunter {_deathUsername} couldn't deal with the guilt of breaking so many non-props!";
+                case "HUNTER_DEATH_3":
+                    return $"Hunter {_deathUsername} decided to break their own soul after breaking too many non-props!";
+            }
+
+            return orig;
         }
 
         private IEnumerator AddRemotePropManagerComponentsToPlayerPrefabs()
@@ -340,8 +404,16 @@ namespace PropHunt.HKMP
         public static void BroadcastPlayerDeath()
         {
             PropHunt.Instance.Log("Local player has died.");
-            _sender.SendSingleData(FromClientToServerPackets.BroadcastPlayerDeath,
-                new BroadcastPlayerDeathFromClientToServerData());
+            if (HeroController.instance.GetComponent<LocalPropManager>().enabled)
+            {
+                _sender.SendSingleData(FromClientToServerPackets.BroadcastPropDeath,
+                    new BroadcastPropDeathFromClientToServerData());
+            }
+            else if (HeroController.instance.GetComponent<Hunter>().enabled)
+            {
+                _sender.SendSingleData(FromClientToServerPackets.BroadcastHunterDeath,
+                    new BroadcastHunterDeathFromClientToServerData());
+            }
         }
 
         /// <summary>

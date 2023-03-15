@@ -58,9 +58,9 @@ namespace PropHunt.HKMP
     }
 
     /// <summary>
-    /// Send by the server to a client to indicate that a player has died.
+    /// Send by the server to a client to indicate that a player has died and was a hunter.
     /// </summary>
-    internal class PlayerDeathFromServerToClientData : IPacketData
+    internal class HunterDeathFromServerToClientData : IPacketData
     {
         public bool IsReliable => true;
         public bool DropReliableDataIfNewerExists => true;
@@ -70,17 +70,35 @@ namespace PropHunt.HKMP
         /// </summary>
         public ushort PlayerId;
         /// <summary>
-        /// The username of the player that died.
+        /// The convo number to be displayed on all clients.
         /// </summary>
-        public string Username;
+        public byte ConvoNum;
+
+        public void ReadData(IPacket packet)
+        {
+            PlayerId = packet.ReadUShort();
+            ConvoNum = packet.ReadByte();
+        }
+
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(PlayerId);
+            packet.Write(ConvoNum);
+        }
+    }
+
+    /// <summary>
+    /// Send by the server to a client to indicate that a player has died and was a prop.
+    /// </summary>
+    internal class PropDeathFromServerToClientData : IPacketData
+    {
+        public bool IsReliable => true;
+        public bool DropReliableDataIfNewerExists => true;
+
         /// <summary>
-        /// The number of hunters remaining after the player died.
+        /// The ID of the player who died.
         /// </summary>
-        public ushort HuntersRemaining;
-        /// <summary>
-        /// The number of hunters total after the player died.
-        /// </summary>
-        public ushort HuntersTotal;
+        public ushort PlayerId;
         /// <summary>
         /// The number of props remaining after the player died.
         /// </summary>
@@ -93,8 +111,6 @@ namespace PropHunt.HKMP
         public void ReadData(IPacket packet)
         {
             PlayerId = packet.ReadUShort();
-            HuntersRemaining = packet.ReadUShort();
-            HuntersTotal = packet.ReadUShort();
             PropsRemaining = packet.ReadUShort();
             PropsTotal = packet.ReadUShort();
         }
@@ -102,8 +118,6 @@ namespace PropHunt.HKMP
         public void WriteData(IPacket packet)
         {
             packet.Write(PlayerId);
-            packet.Write(HuntersRemaining);
-            packet.Write(HuntersTotal);
             packet.Write(PropsRemaining);
             packet.Write(PropsTotal);
         }
@@ -122,18 +136,6 @@ namespace PropHunt.HKMP
         /// </summary>
         public ushort PlayerId;
         /// <summary>
-        /// The username of the player that left the game.
-        /// </summary>
-        public string Username;
-        /// <summary>
-        /// The number of hunters remaining after the player left.
-        /// </summary>
-        public ushort HuntersRemaining;
-        /// <summary>
-        /// The number of hunters total after the player left.
-        /// </summary>
-        public ushort HuntersTotal;
-        /// <summary>
         /// The number of props remaining after the player left.
         /// </summary>
         public ushort PropsRemaining;
@@ -145,9 +147,6 @@ namespace PropHunt.HKMP
         public void ReadData(IPacket packet)
         {
             PlayerId = packet.ReadUShort();
-            Username = packet.ReadString();
-            HuntersRemaining = packet.ReadUShort();
-            HuntersTotal = packet.ReadUShort();
             PropsRemaining = packet.ReadUShort();
             PropsTotal = packet.ReadUShort();
         }
@@ -155,9 +154,6 @@ namespace PropHunt.HKMP
         public void WriteData(IPacket packet)
         {
             packet.Write(PlayerId);
-            packet.Write(Username);
-            packet.Write(HuntersRemaining);
-            packet.Write(HuntersTotal);
             packet.Write(PropsRemaining);
             packet.Write(PropsTotal);
         }
@@ -431,7 +427,8 @@ namespace PropHunt.HKMP
     {
         AssignTeam,
         EndRound,
-        PlayerDeath,
+        HunterDeath,
+        PropDeath,
         PlayerLeftGame,
         UpdateGraceTimer,
         UpdateRoundTimer,
@@ -445,9 +442,22 @@ namespace PropHunt.HKMP
 
     #region Client to Server
     /// <summary>
-    /// Broadcast to all players that the local player has died.
+    /// Broadcast to all players that the local player has died and is a prop.
     /// </summary>
-    internal class BroadcastPlayerDeathFromClientToServerData : IPacketData
+    internal class BroadcastPropDeathFromClientToServerData : IPacketData
+    {
+        public bool IsReliable => true;
+        public bool DropReliableDataIfNewerExists => true;
+
+        public void ReadData(IPacket packet) { }
+
+        public void WriteData(IPacket packet) { }
+    }
+
+    /// <summary>
+    /// Broadcast to all players that the local player has died and is a hunter.
+    /// </summary>
+    internal class BroadcastHunterDeathFromClientToServerData : IPacketData
     {
         public bool IsReliable => true;
         public bool DropReliableDataIfNewerExists => true;
@@ -698,7 +708,8 @@ namespace PropHunt.HKMP
 
     public enum FromClientToServerPackets
     {
-        BroadcastPlayerDeath,
+        BroadcastHunterDeath,
+        BroadcastPropDeath,
         BroadcastPropPositionXY,
         BroadcastPropPositionZ,
         BroadcastPropRotation,

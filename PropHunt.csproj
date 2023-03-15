@@ -8,7 +8,7 @@
 		<Product>PropHunt</Product>
 		<Description>HKMP Prop Hunt add-on.</Description>
 		<Copyright>Copyright © jngo102 2023</Copyright>
-		<AssemblyVersion>0.0.1.1</AssemblyVersion>
+		<AssemblyVersion>0.0.1.2</AssemblyVersion>
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
@@ -27,6 +27,7 @@
 		<GameDir2>$(MSBuildProgramFiles32)/GOG Galaxy/Games/Hollow Knight</GameDir2>
 		<!-- Path to mods folder of another installation of Hollow Knight -->
 		<ModsPath2>$(GameDir2)/Hollow Knight_Data/Managed/Mods</ModsPath2>
+		<ModsPath3>C:\Users\$(USERNAME)\OneDrive</ModsPath3>
 		<ServerPath>C:\HK\Modding\HollowKnight\HKMP\HKMP\HKMPServer\bin\Debug\net472</ServerPath>
 		<!-- The folder that exports will be generated in -->
 		<ExportDir>Output</ExportDir>
@@ -65,6 +66,8 @@
 		<RemoveDir Condition="Exists('$(ModsPath2)/$(TargetName)')" Directories="$(ModsPath2)/$(TargetName)" />
 		<MakeDir Directories="$(ModsPath2)/$(TargetName)" />
 		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath2)/$(TargetName)" />
+		<RemoveDir Condition="Exists('$(ModsPath3)/$(TargetName)')" Directories="$(ModsPath3)/$(TargetName)" />
+		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath3)" />
 		<RemoveDir Condition="Exists('$(ServerPath)/$(TargetName)')" Directories="$(ServerPath)/$(TargetName)" />
 		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ServerPath)" />
 		<!--<Exec Command="start &quot;$(GameDir2)/Hollow Knight.exe&quot;" />-->

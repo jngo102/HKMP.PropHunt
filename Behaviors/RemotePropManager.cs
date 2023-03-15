@@ -9,7 +9,6 @@ namespace PropHunt.Behaviors
         private GameObject _username;
         private SpriteRenderer _propSprite;
         public GameObject Prop { get; private set; }
-        public Sprite PropSprite => _propSprite.sprite;
 
         private void Awake()
         {
@@ -19,6 +18,11 @@ namespace PropHunt.Behaviors
             Prop.transform.SetParent(transform);
             ResetPropTransform();
             _propSprite = Prop.AddComponent<SpriteRenderer>();
+        }
+
+        private void OnDisable()
+        {
+            _propSprite.sprite = null;
         }
         
         /// <summary>
@@ -40,7 +44,7 @@ namespace PropHunt.Behaviors
             }
             
             _meshRend.enabled = false;
-            if (!HeroController.instance.GetComponent<LocalPropManager>().enabled)
+            if (HeroController.instance.GetComponent<Hunter>().enabled)
             {
                 _username.SetActive(false);
             }

@@ -11,7 +11,7 @@ namespace PropHunt.UI
     {
         private TextMeshPro _graceTextMesh;
         private TextMeshPro _roundTextMesh;
-        private TextMeshPro _msgTextMesh;
+        private PlayMakerFSM _displayDreamMsg;
 
         private void Awake()
         {
@@ -19,6 +19,14 @@ namespace PropHunt.UI
             {
                 layer = (int)PhysLayers.UI
             };
+
+            var dreamMsg = GameCameras.instance.hudCamera.transform.Find("DialogueManager/Dream Msg").gameObject;
+            foreach (var rend in dreamMsg.GetComponentsInChildren<Renderer>())
+            {
+                // Place dream msg above blanker so hunters can read that they are hunters.
+                rend.sortingOrder = 11;
+            }
+            _displayDreamMsg = dreamMsg.LocateMyFSM("Display");
 
             graceTimer.transform.SetParent(transform.Find("Geo Counter"));
             graceTimer.transform.localPosition = new Vector3(-9, 4.85f, 40);
@@ -48,24 +56,6 @@ namespace PropHunt.UI
             _roundTextMesh.text = "";
             _roundTextMesh.enableWordWrapping = false;
             renderer = _roundTextMesh.renderer;
-            renderer.sortingLayerName = "HUD";
-            renderer.sortingOrder = 11;
-
-            var msg = new GameObject("Prop Hunt Message")
-            {
-                layer = (int)PhysLayers.UI
-            };
-
-            msg.transform.SetParent(transform.Find("Geo Counter"));
-            msg.transform.localPosition = new Vector3(-9, 4.2f, 40);
-            msg.transform.localScale = Vector3.one * 0.1527f;
-            _msgTextMesh = msg.AddComponent<TextMeshPro>();
-            _msgTextMesh.font = Resources.FindObjectsOfTypeAll<TMP_FontAsset>()
-                .FirstOrDefault(font => font.name == "trajan_bold_tmpro");
-            _msgTextMesh.fontSize = 35;
-            _msgTextMesh.text = "";
-            _msgTextMesh.enableWordWrapping = false;
-            renderer = _msgTextMesh.renderer;
             renderer.sortingLayerName = "HUD";
             renderer.sortingOrder = 11;
         }
@@ -113,36 +103,13 @@ namespace PropHunt.UI
         }
 
         /// <summary>
-        /// Set a message for the Prop Hunt message object.
+        /// Set a message for the Dream dialogue UI.
         /// </summary>
-        /// <param name="message">The message to display</param>
-        public void SetPropHuntMessage(string message)
+        /// <param name="convoTitle">THe convo title to set the Dream dialogue to</param>
+        public void SetPropHuntMessage(string convoTitle)
         {
-            StartCoroutine(ShowMessageRoutine());
-
-            IEnumerator ShowMessageRoutine()
-            {
-                _msgTextMesh.text = message;
-
-                _msgTextMesh.alpha = 0;
-                yield return new WaitUntil(() =>
-                {
-                    _msgTextMesh.alpha += Time.deltaTime * 4;
-                    return _msgTextMesh.alpha >= 1;
-;               });
-
-                _msgTextMesh.alpha = 1;
-
-                yield return new WaitForSeconds(4);
-
-                yield return new WaitUntil(() =>
-                {
-                    _msgTextMesh.alpha -= Time.deltaTime * 4;
-                    return _msgTextMesh.alpha <= 0;
-                });
-
-                _msgTextMesh.alpha = 0;
-            }
+            _displayDreamMsg.Fsm.GetFsmString("Convo Title").Value = convoTitle;
+            _displayDreamMsg.SendEvent("DISPLAY DREAM MSG");
         }
     }
 }

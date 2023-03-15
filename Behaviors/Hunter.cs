@@ -28,9 +28,9 @@ namespace PropHunt.Behaviors
 
         private void OnEnable()
         {
-            _pd.health = 10;
             _pd.maxHealth = 10;
             _pd.maxHealthBase = 10;
+            HeroController.instance.MaxHealth();
             _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
 
             HeroController.instance.StartAnimationControl();
@@ -40,7 +40,7 @@ namespace PropHunt.Behaviors
         private bool RemoveFocus(On.HeroController.orig_CanFocus orig, HeroController self) => false;
 
         /// <summary>
-        /// Deactivate controls, then wait for a certain amount of time before reactivating them.
+        /// Show blanker and deactivate controls.
         /// </summary>
         public void BeginGracePeriod()
         {
