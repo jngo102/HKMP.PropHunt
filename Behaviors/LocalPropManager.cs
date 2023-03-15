@@ -34,13 +34,7 @@ namespace PropHunt.Behaviors
         private const float SMALLEST_SPRITE_AREA = 0f;
 
         private Vector2 _origColSize;
-        private int _origHealth;
-        private int _origMaxHealth;
-        private int _origMaxHealthBase;
 
-        private readonly List<PlayMakerFSM> _healthDisplays = new();
-
-        private HeroAnimationController _anim;
         private BoxCollider2D _col;
         private HeroController _hc;
         private HeroActions _heroInput;
@@ -58,7 +52,6 @@ namespace PropHunt.Behaviors
 
         private void Awake()
         {
-            _anim = GetComponent<HeroAnimationController>();
             _col = GetComponent<BoxCollider2D>();
             _hc = GetComponent<HeroController>();
             _heroInput = GameManager.instance.inputHandler.inputActions;
@@ -78,26 +71,10 @@ namespace PropHunt.Behaviors
             _iconRenderer.sortingOrder = 100;
 
             _origColSize = _col.size;
-            _origHealth = _pd.health;
-            _origMaxHealth = _pd.maxHealth;
-            _origMaxHealthBase = _pd.maxHealthBase;
 
             var hkmpAssembly = AppDomain.CurrentDomain.GetAssemblyByName("HKMP");
             _chatBoxType = hkmpAssembly.GetType("Hkmp.Ui.Chat.ChatBox");
             _chatBox = Convert.ChangeType(PropHuntClientAddon.Api.UiManager.ChatBox, _chatBoxType);
-        }
-
-        private IEnumerator Start()
-        {
-            yield return new WaitUntil(() =>
-                GameCameras.instance.hudCanvas.transform.Find("Health/Health 1").gameObject != null);
-
-            var healthParent = GameCameras.instance.hudCanvas.transform.Find("Health");
-            for (int healthNum = 1; healthNum <= 11; healthNum++)
-            {
-                var health = healthParent.Find($"Health {healthNum}").gameObject;
-                _healthDisplays.Add(health.LocateMyFSM("health_display"));
-            }
         }
 
         private void Update()
@@ -108,14 +85,7 @@ namespace PropHunt.Behaviors
 
         private void OnEnable()
         {
-            EnableInput(false);
-
-            _anim.enabled = false;
-
-            _pd.health = 1;
-            _pd.maxHealth = 1;
-            _pd.maxHealthBase = 1;
-            _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
+            LoadoutUtil.SetPropLoadout();
 
             On.GameManager.HazardRespawn += OnHazardRespawn;
             On.HeroController.EnterScene += OnEnterScene;
@@ -125,19 +95,10 @@ namespace PropHunt.Behaviors
 
         private void OnDisable() => Revert();
 
-        private void OnDestroy() => Revert();
-
         private void Revert()
         {
+            LoadoutUtil.RevertPropLoadout();
             ClearProp();
-            EnableInput(true);
-
-            _anim.enabled = true;
-
-            _pd.health = _origHealth;
-            _pd.maxHealth = _origMaxHealth;
-            _pd.maxHealthBase = _origMaxHealthBase;
-            _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
 
             On.GameManager.HazardRespawn -= OnHazardRespawn;
             On.HeroController.EnterScene -= OnEnterScene;
@@ -172,33 +133,6 @@ namespace PropHunt.Behaviors
 
             SetPropStateFree();
         }
-
-        /// <summary>
-        /// Enable or disable inputs of a player on the prop team.
-        /// </summary>
-        /// <param name="enable">Whether to enable or disable the set of inputs.</param>
-        private void EnableInput(bool enable)
-        {
-            if (enable)
-            { 
-                On.HeroController.CanCast -= RemoveCast;
-                On.HeroController.CanDreamNail -= RemoveDreamNail;
-                On.HeroController.CanFocus -= RemoveFocus;
-                On.HeroController.CanNailCharge -= RemoveNailCharge;
-            }
-            else
-            {
-                On.HeroController.CanCast += RemoveCast;
-                On.HeroController.CanDreamNail += RemoveDreamNail;
-                On.HeroController.CanFocus += RemoveFocus;
-                On.HeroController.CanNailCharge += RemoveNailCharge;
-            }
-        }
-
-        private bool RemoveCast(On.HeroController.orig_CanCast orig, HeroController self) => false;
-        private bool RemoveDreamNail(On.HeroController.orig_CanDreamNail orig, HeroController self) => false;
-        private bool RemoveFocus(On.HeroController.orig_CanFocus orig, HeroController self) => false;
-        private bool RemoveNailCharge(On.HeroController.orig_CanNailCharge orig, HeroController self) => false;
 
         /// <summary>
         /// Change the prop's state based on input.
@@ -310,19 +244,14 @@ namespace PropHunt.Behaviors
 
                 Vector2 breakSize = breakSprite.bounds.size;
                 var area = breakSize.x * breakSize.y;
-                var healthRatio = _pd.health / (float)_pd.maxHealth;
                 float maxHealth = MathUtil.Map(
                     area,
                     SMALLEST_SPRITE_AREA,
                     LARGEST_SPRITE_AREA,
                     PROP_HEALTH_MIN,
                     PROP_HEALTH_MAX);
-                maxHealth = Mathf.Clamp(maxHealth, PROP_HEALTH_MIN, PROP_HEALTH_MAX);
-                _pd.maxHealth = (int)maxHealth;
-                _pd.maxHealthBase = (int)maxHealth;
-                _pd.health = Mathf.FloorToInt(healthRatio * _pd.maxHealth);
-                _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
-                
+                LoadoutUtil.SetHealth((int)maxHealth, false);
+
                 _propSprite.transform.localPosition = Vector3.zero;
                 _propSprite.transform.rotation = Quaternion.identity;
                 _propSprite.transform.localScale = Vector3.one;
@@ -409,10 +338,7 @@ namespace PropHunt.Behaviors
         {
             _col.size = _origColSize;
 
-            _pd.health = 1;
-            _pd.maxHealth = 1;
-            _pd.maxHealthBase = 1;
-            _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
+            LoadoutUtil.SetHealth(1, true);
 
             _propState = PropState.Free;
             _propSprite.sprite = null;

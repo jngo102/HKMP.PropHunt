@@ -1,15 +1,16 @@
-using GlobalEnums;
+﻿using GlobalEnums;
 using Hkmp.Api.Client;
 using Hkmp.Api.Client.Networking;
 using Hkmp.Game;
+using Hkmp.Util;
 using Modding;
 using Modding.Utils;
 using PropHunt.Behaviors;
 using PropHunt.UI;
-using Satchel;
 using System.Collections;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 using USceneManager = UnityEngine.SceneManagement.SceneManager;
 
@@ -63,6 +64,7 @@ namespace PropHunt.HKMP
                     IEnumerator HazardRespawnThenAssignTeam()
                     {
                         ModHooks.BeforePlayerDeadHook += BroadcastPlayerDeath;
+                        USceneManager.activeSceneChanged += OnSceneChange;
 
                         var propManager = HeroController.instance.GetComponent<LocalPropManager>();
                         var hunter = HeroController.instance.GetComponent<Hunter>();
@@ -125,6 +127,8 @@ namespace PropHunt.HKMP
                     hc.GetComponent<tk2dSpriteAnimator>().Play("Idle");
 
                     ModHooks.BeforePlayerDeadHook -= BroadcastPlayerDeath;
+                    On.Breakable.Break -= OnBreakableBreak;
+                    USceneManager.activeSceneChanged -= OnSceneChange;
 
                     var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
                     var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
@@ -141,8 +145,6 @@ namespace PropHunt.HKMP
                     var ui = GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
                     ui.SetTimeRemainingInRound(0);
                     ui.SetGraceTimeRemaining(0);
-
-                    On.Breakable.Break -= OnBreakableBreak;
 
                     InitComponents();
 
@@ -316,14 +318,46 @@ namespace PropHunt.HKMP
                 case "HUNTER_DEATH_0":
                     return $"Hunter {_deathUsername} died! Maybe they should learn the room layout better...";
                 case "HUNTER_DEATH_1":
-                    return $"Hunter {_deathUsername} foolishly hit too many non-props and perished!";
+                    return $"Hunter {_deathUsername} foolishly broke too many non-props and perished!";
                 case "HUNTER_DEATH_2":
-                    return $"Hunter {_deathUsername} couldn't deal with the guilt of breaking so many non-props!";
+                    return $"Hunter {_deathUsername} couldn't deal with the guilt of breaking so many innocent objects!";
                 case "HUNTER_DEATH_3":
-                    return $"Hunter {_deathUsername} decided to break their own soul after breaking too many non-props!";
+                    return $"Hunter {_deathUsername} mistakenly broke their own soul!";
+                case "HUNTER_DEATH_4":
+                    return $"Hunter {_deathUsername} has been banned from IKEA!";
             }
 
             return orig;
+        }
+
+        private void OnSceneChange(Scene prevScene, Scene nextScene)
+        {
+            foreach (var fsm in Object.FindObjectsOfType<PlayMakerFSM>())
+            {
+                if (fsm.gameObject.scene != nextScene)
+                {
+                    continue;
+                }
+
+                // Find "Bench Control" FSMs and disable sitting on them
+                if (fsm.Fsm.Name.Equals("Bench Control"))
+                {
+                    PropHunt.Instance.Log("Found FSM with Bench Control, patching...");
+
+                    fsm.InsertMethod("Pause 2", 1, () => { PlayerData.instance.SetBool("atBench", false); });
+
+                    var checkStartState2 = fsm.GetState("Check Start State 2");
+                    var pause2State = fsm.GetState("Pause 2");
+                    checkStartState2.GetTransition(1).ToFsmState = pause2State;
+
+                    var checkStartState = fsm.GetState("Check Start State");
+                    var idleStartPauseState = fsm.GetState("Idle Start Pause");
+                    checkStartState.GetTransition(1).ToFsmState = idleStartPauseState;
+
+                    var idleState = fsm.GetState("Idle");
+                    idleState.Actions = new[] { idleState.Actions[0] };
+                }
+            }
         }
 
         private IEnumerator AddRemotePropManagerComponentsToPlayerPrefabs()
@@ -497,7 +531,7 @@ namespace PropHunt.HKMP
                 return;
             }
             
-            var texture = SpriteUtils.ExtractTextureFromSprite(sprite);
+            var texture = Satchel.SpriteUtils.ExtractTextureFromSprite(sprite);
             var bytes = texture.EncodeToPNG();
             _sender.SendSingleData(FromClientToServerPackets.BroadcastPropSprite,
                 new BroadcastPropSpriteFromClientToServerData

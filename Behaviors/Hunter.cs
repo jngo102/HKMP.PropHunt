@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PropHunt.Util;
 using UnityEngine;
 
 namespace PropHunt.Behaviors
@@ -21,21 +22,9 @@ namespace PropHunt.Behaviors
             }
         }
 
-        private void OnDisable()
-        {
-            On.HeroController.CanFocus -= RemoveFocus;
-        }
+        private void OnDisable() => LoadoutUtil.RevertHunterLoadout();
 
-        private void OnEnable()
-        {
-            _pd.maxHealth = 10;
-            _pd.maxHealthBase = 10;
-            HeroController.instance.MaxHealth();
-            _healthDisplays.ForEach(fsm => fsm.SetState("ReInit"));
-
-            HeroController.instance.StartAnimationControl();
-            On.HeroController.CanFocus += RemoveFocus;
-        }
+        private void OnEnable() => LoadoutUtil.SetHunterLoadout();
 
         private bool RemoveFocus(On.HeroController.orig_CanFocus orig, HeroController self) => false;
 
