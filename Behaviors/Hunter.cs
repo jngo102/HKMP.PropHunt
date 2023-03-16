@@ -1,9 +1,9 @@
-using System.Collections.Generic;
 using PropHunt.Util;
 using UnityEngine;
 
 namespace PropHunt.Behaviors
 {
+    [RequireComponent(typeof(HeroController))]
     internal class Hunter : MonoBehaviour
     {
         private void OnDisable() => LoadoutUtil.RevertHunterLoadout();

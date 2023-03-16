@@ -4,7 +4,6 @@ using PropHunt.Input;
 using PropHunt.Util;
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
@@ -95,8 +94,6 @@ namespace PropHunt.Behaviors
 
         private void Revert()
         {
-            transform.rotation = Quaternion.identity;
-
             LoadoutUtil.RevertPropLoadout();
             ClearProp();
 
@@ -241,7 +238,6 @@ namespace PropHunt.Behaviors
             if (breakSprite != null)
             {
                 var moveUp = Vector3.up * ((breakCol.size.y - _col.size.y + _col.offset.y) / 2);
-                PropHunt.Instance.Log("Move up by: " + moveUp);
                 transform.position += moveUp;
                     
                 _col.size = breakCol.size;

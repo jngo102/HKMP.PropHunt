@@ -108,7 +108,7 @@ namespace PropHunt.HKMP
                     if (serverApi.ServerManager.TryGetPlayer(id, out var player))
                     {
                         var random = new Random();
-                        int convoNum = random.Next(0, 5);
+                        int convoNum = random.Next(0, 6);
                         _sender.BroadcastSingleData(FromServerToClientPackets.HunterDeath,
                             new HunterDeathFromServerToClientData
                             {

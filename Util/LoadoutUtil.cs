@@ -21,7 +21,8 @@ namespace PropHunt.Util
             RemoveSoul();
             SetKingSoul();
             EquipCharms(26, 31, 36, 37);
-            HeroController.instance.GetComponent<HeroAnimationController>().enabled = true;
+            var animCtrl = HeroController.instance.GetComponent<HeroAnimationController>();
+            animCtrl.enabled = true;
             On.HeroController.CanFocus += RemoveFocus;
         }
 
@@ -32,6 +33,7 @@ namespace PropHunt.Util
         {
             RevertHealth();
             SaveHealth();
+            EquipCharms();
             On.HeroController.CanFocus -= RemoveFocus;
         }
 
@@ -48,6 +50,9 @@ namespace PropHunt.Util
             On.HeroController.CanFocus += RemoveFocus;
             On.HeroController.CanCast += RemoveCast;
             On.HeroController.CanNailCharge += RemoveNailCharge;
+            // Prevent float
+            HeroController.instance.gameObject.LocateMyFSM("Nail Arts").SendEvent("FSM CANCEL");
+            HeroController.instance.gameObject.LocateMyFSM("Spell Control").SendEvent("FSM CANCEL");
         }
 
         /// <summary>
@@ -133,7 +138,7 @@ namespace PropHunt.Util
         private static void EquipCharms(params int[] charmIndices)
         {
             // Un-equip all charms
-            for (var i = 1; i < 40; i++)
+            for (var i = 1; i <= 40; i++)
             {
                 PlayerData.instance.SetBool("equippedCharm_" + i, false);
                 GameManager.instance.UnequipCharm(i);

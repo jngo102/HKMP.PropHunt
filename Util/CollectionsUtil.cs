@@ -7,6 +7,11 @@ namespace PropHunt.Util
     {
         private static readonly Random Random = new();
 
+        /// <summary>
+        /// Randomize the elements of a list.
+        /// </summary>
+        /// <typeparam name="T">The type of the list's contents</typeparam>
+        /// <param name="list">The list whose elements are to be randomized</param>
         public static void Shuffle<T>(this IList<T> list)
         {
             int n = list.Count;

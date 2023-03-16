@@ -125,7 +125,7 @@ namespace PropHunt.HKMP
                     var hc = HeroController.instance;
                     var propManager = hc.GetComponent<LocalPropManager>();
                     var hunter = hc.GetComponent<Hunter>();
-                    hc.GetComponent<tk2dSpriteAnimator>().Play("Idle");
+                    hc.GetComponent<HeroAnimationController>().PlayIdle();
 
                     ModHooks.BeforePlayerDeadHook -= BroadcastPlayerDeath;
                     On.Breakable.Break -= OnBreakableBreak;
@@ -325,7 +325,9 @@ namespace PropHunt.HKMP
                 case "HUNTER_DEATH_3":
                     return $"Hunter {_deathUsername} mistakenly broke their own soul!";
                 case "HUNTER_DEATH_4":
-                    return $"Hunter {_deathUsername} has been banned from IKEA!";
+                    return $"Hunter {_deathUsername} was banned from IKEA!";
+                case "HUNTER_DEATH_5":
+                    return $"Hunter {_deathUsername} behaved im-prop-erly!";
             }
 
             return orig;

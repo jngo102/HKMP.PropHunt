@@ -20,10 +20,7 @@ namespace PropHunt.Behaviors
             _propSprite = Prop.AddComponent<SpriteRenderer>();
         }
 
-        private void OnDisable()
-        {
-            _propSprite.sprite = null;
-        }
+        private void OnDisable() => _propSprite.sprite = null;
         
         /// <summary>
         /// Set the remote player's prop's sprite.
