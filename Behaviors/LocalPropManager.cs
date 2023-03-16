@@ -16,16 +16,16 @@ namespace PropHunt.Behaviors
     {
         private const float SHORTEST_DISTANCE = 2;
 
-        private const float TRANSLATE_XY_SPEED = 1f;
+        private const float TRANSLATE_XY_SPEED = 2f;
         private const float TRANSLATE_Z_SPEED = 1f;
-        private const float ROTATE_SPEED = 35f;
-        private const float SCALE_SPEED = 0.5f;
+        private const float ROTATE_SPEED = 60f;
+        private const float SCALE_SPEED = 1f;
 
-        private const float XY_MAX_MAGNITUDE = 0.65f;
+        private const float XY_MAX_MAGNITUDE = 1f;
         private const float MIN_Z = -0.5f;
         private const float MAX_Z = 0.5f;
-        private const float MIN_SCALE = 0.75f;
-        private const float MAX_SCALE = 1.5f;
+        private const float MIN_SCALE = 0.5f;
+        private const float MAX_SCALE = 2f;
 
         private const int PROP_HEALTH_MIN = 2;
         private const int PROP_HEALTH_MAX = 11;
@@ -40,7 +40,6 @@ namespace PropHunt.Behaviors
         private HeroActions _heroInput;
         private PropActions _propInput;
         private MeshRenderer _meshRend;
-        private PlayerData _pd;
         public GameObject Prop { get; private set; }
         private SpriteRenderer _propSprite;
         public Sprite PropSprite => _propSprite.sprite;
@@ -57,7 +56,6 @@ namespace PropHunt.Behaviors
             _heroInput = GameManager.instance.inputHandler.inputActions;
             _propInput = PropHunt.Instance.Settings.Bindings;
             _meshRend = GetComponent<MeshRenderer>();
-            _pd = PlayerData.instance;
 
             Prop = new GameObject("Prop");
             Prop.transform.SetParent(transform);
@@ -97,6 +95,8 @@ namespace PropHunt.Behaviors
 
         private void Revert()
         {
+            transform.rotation = Quaternion.identity;
+
             LoadoutUtil.RevertPropLoadout();
             ClearProp();
 
@@ -240,6 +240,10 @@ namespace PropHunt.Behaviors
             _propSprite.sprite = breakSprite;
             if (breakSprite != null)
             {
+                var moveUp = Vector3.up * ((breakCol.size.y - _col.size.y + _col.offset.y) / 2);
+                PropHunt.Instance.Log("Move up by: " + moveUp);
+                transform.position += moveUp;
+                    
                 _col.size = breakCol.size;
 
                 Vector2 breakSize = breakSprite.bounds.size;
@@ -256,14 +260,13 @@ namespace PropHunt.Behaviors
                 _propSprite.transform.rotation = Quaternion.identity;
                 _propSprite.transform.localScale = Vector3.one;
                 _meshRend.enabled = false;
+                
+                PropHuntClientAddon.BroadcastPropSprite(PropSprite, Prop.transform.localPosition, Prop.transform.localRotation.eulerAngles.z, Prop.transform.localScale.x);
             }
             else
             {
                 ClearProp();
-                return;
             }
-
-            PropHuntClientAddon.BroadcastPropSprite(PropSprite, Prop.transform.localPosition, Prop.transform.localRotation.eulerAngles.z, Prop.transform.localScale.x);
         }
 
         /// <summary>
@@ -326,6 +329,7 @@ namespace PropHunt.Behaviors
                     var scaleFactor = Prop.transform.localScale.x + inputValue * Time.deltaTime * SCALE_SPEED;
                     scaleFactor = Mathf.Clamp(scaleFactor, MIN_SCALE, MAX_SCALE);
                     Prop.transform.localScale = Vector3.one * scaleFactor;
+
                     PropHuntClientAddon.BroadcastPropScale(Prop.transform.localScale.x);
                     break;
             }

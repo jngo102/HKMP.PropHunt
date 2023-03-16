@@ -51,7 +51,7 @@ namespace PropHunt
             GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
         }
 
-        public void OnLoadGlobal(GlobalSettings s) => Settings = s;
+        public void OnLoadGlobal(GlobalSettings settings) => Settings = settings;
         public GlobalSettings OnSaveGlobal() => Settings;
 
         public MenuScreen GetMenuScreen(MenuScreen modListMenu, ModToggleDelegates? toggleDelegates)
@@ -89,6 +89,9 @@ namespace PropHunt
 
         public bool ToggleButtonInsideMenu { get; }
     
+        /// <summary>
+        /// Load asset bundles embedded in the assembly.
+        /// </summary>
         private void LoadAssets()
         {
             var assembly = Assembly.GetExecutingAssembly();

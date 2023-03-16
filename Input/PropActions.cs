@@ -3,7 +3,7 @@
 namespace PropHunt.Input
 {
     /// <summary>
-    /// A custom player action set for transforming a prop.
+    /// A custom player action set for turning into and transforming a prop.
     /// </summary>
     public class PropActions : PlayerActionSet
     {

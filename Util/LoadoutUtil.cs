@@ -37,7 +37,7 @@ namespace PropHunt.Util
 
         /// <summary>
         /// Make changes to the player as a prop.
-        /// </summary>
+        /// </summary>  
         public static void SetPropLoadout()
         {
             RevertHunterLoadout();
@@ -47,7 +47,7 @@ namespace PropHunt.Util
             HeroController.instance.GetComponent<HeroAnimationController>().enabled = false;
             On.HeroController.CanFocus += RemoveFocus;
             On.HeroController.CanCast += RemoveCast;
-            On.HeroController.CanNailArt += RemoveNailArt;
+            On.HeroController.CanNailCharge += RemoveNailCharge;
         }
 
         /// <summary>
@@ -59,13 +59,13 @@ namespace PropHunt.Util
             SaveHealth();
             On.HeroController.CanFocus -= RemoveFocus;
             On.HeroController.CanCast -= RemoveCast;
-            On.HeroController.CanNailArt -= RemoveNailArt;
+            On.HeroController.CanNailCharge -= RemoveNailCharge;
         }
         private static bool RemoveFocus(On.HeroController.orig_CanFocus orig, HeroController self) => false;
 
         private static bool RemoveCast(On.HeroController.orig_CanCast orig, HeroController self) => false;
 
-        private static bool RemoveNailArt(On.HeroController.orig_CanNailArt orig, HeroController self) => false;
+        private static bool RemoveNailCharge(On.HeroController.orig_CanNailCharge orig, HeroController self) => false;
 
         /// <summary>
         /// Save the player's current health values.

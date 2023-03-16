@@ -83,7 +83,7 @@ namespace PropHunt.HKMP
             _sender = serverApi.NetServer.GetNetworkSender<FromServerToClientPackets>(Instance);
             _receiver = serverApi.NetServer.GetNetworkReceiver<FromClientToServerPackets>(Instance, serverPacket =>
             {
-                Console.WriteLine("Received packet: " + serverPacket);
+                Logger.Info("Received packet: " + serverPacket);
                 return serverPacket switch
                 {
                     FromClientToServerPackets.BroadcastHunterDeath => new BroadcastHunterDeathFromClientToServerData(),
@@ -156,8 +156,7 @@ namespace PropHunt.HKMP
                         _livingHunters.Add(player);
                     }
 
-                    Console.WriteLine(
-                        $"Player {id} died:\t{PropsAlive}/{TotalProps} props alive");
+                    Logger.Info($"Player {id} died:\t{PropsAlive}/{TotalProps} props alive");
                 });
 
             _receiver.RegisterPacketHandler<BroadcastPropPositionXYFromClientToServerData>(
@@ -170,7 +169,7 @@ namespace PropHunt.HKMP
                             .Where(p => p.CurrentScene == player.CurrentScene && p != player).Select(p => p.Id)
                             .ToArray();
 
-                        Console.WriteLine($"Relaying prop position ({packetData.X}, {packetData.Y}) to {playersInScene.Length} players");
+                        Logger.Info($"Relaying prop position ({packetData.X}, {packetData.Y}) to {playersInScene.Length} players");
                         _sender.SendSingleData(FromServerToClientPackets.UpdatePropPositionXY, new UpdatePropPositionXYFromServerToClientData
                         {
                             PlayerId = id,
@@ -190,7 +189,7 @@ namespace PropHunt.HKMP
                             .Where(p => p.CurrentScene == player.CurrentScene && p != player).Select(p => p.Id)
                             .ToArray();
 
-                        Console.WriteLine($"Relaying prop position Z {packetData.Z} to {playersInScene.Length} players");
+                        Logger.Info($"Relaying prop position Z {packetData.Z} to {playersInScene.Length} players");
                         _sender.SendSingleData(FromServerToClientPackets.UpdatePropPositionZ, new UpdatePropPositionZFromServerToClientData
                         {
                             PlayerId = id,
@@ -209,7 +208,7 @@ namespace PropHunt.HKMP
                             .Where(p => p.CurrentScene == player.CurrentScene && p != player).Select(p => p.Id)
                             .ToArray();
 
-                        Console.WriteLine($"Relaying prop rotation {packetData.Rotation} to {playersInScene.Length} players");
+                        Logger.Info($"Relaying prop rotation {packetData.Rotation} to {playersInScene.Length} players");
                         _sender.SendSingleData(FromServerToClientPackets.UpdatePropRotation, new UpdatePropRotationFromServerToClientData
                         {
                             PlayerId = id,
@@ -228,7 +227,7 @@ namespace PropHunt.HKMP
                             .Where(p => p.CurrentScene == player.CurrentScene && p != player).Select(p => p.Id)
                             .ToArray();
 
-                        Console.WriteLine($"Relaying prop scale {packetData.Scale} to {playersInScene.Length} players");
+                        Logger.Info($"Relaying prop scale {packetData.Scale} to {playersInScene.Length} players");
                         _sender.SendSingleData(FromServerToClientPackets.UpdatePropScale, new UpdatePropScaleFromServerToClientData
                         {
                             PlayerId = id,
@@ -246,7 +245,7 @@ namespace PropHunt.HKMP
                             .Where(p => p.CurrentScene == player.CurrentScene && p != player).Select(p => p.Id)
                             .ToArray();
 
-                        Console.WriteLine($"Relaying prop sprite {packetData.SpriteName} to {playersInScene.Length} players");
+                        Logger.Info($"Relaying prop sprite {packetData.SpriteName} to {playersInScene.Length} players");
                         _sender.SendSingleData(FromServerToClientPackets.UpdatePropSprite, new UpdatePropSpriteFromServerToClientData
                         {
                             PlayerId = id,
@@ -273,7 +272,7 @@ namespace PropHunt.HKMP
                 {
                     byte graceTime = packetData.GraceTime;
                     ushort roundTime = packetData.RoundTime;
-                    Console.WriteLine($"Round started; Grace Time: {graceTime}, Round Time: {roundTime}");
+                    Logger.Info($"Round started; Grace Time: {graceTime}, Round Time: {roundTime}");
                     _roundStarted = true;
                     var players = serverApi.ServerManager.Players.ToList();
                     players.Shuffle();
@@ -290,8 +289,8 @@ namespace PropHunt.HKMP
                     _livingHunters.AddRange(_allHunters);
                     _livingProps.AddRange(_allProps);
 
-                    Console.WriteLine("Number of hunters: " + TotalHunters);
-                    Console.WriteLine("Number of props: " + TotalProps);
+                    Logger.Info("Number of hunters: " + TotalHunters);
+                    Logger.Info("Number of props: " + TotalProps);
 
                     _intervalTimer.Change(1000, 1000);
                     _roundTimer.Change(packetData.RoundTime * 1000, Timeout.Infinite);
@@ -360,7 +359,7 @@ namespace PropHunt.HKMP
                         isHunter = teamChoices[rand.Next(0, 2)];
                     }
 
-                    Console.WriteLine("New player assigned to Hunters team: " + isHunter);
+                    Logger.Info("New player assigned to Hunters team: " + isHunter);
 
                     _sender.SendSingleData(FromServerToClientPackets.AssignTeam, new AssignTeamFromServerToClientData
                     {
@@ -393,11 +392,11 @@ namespace PropHunt.HKMP
                         PropsTotal = disconnectedHunter != null ? (ushort)0 : TotalProps,
                     });
 
-                    Console.WriteLine(
+                    Logger.Info(
                         $"Player {player.Id} left the server: {_livingHunters.Count}/{_allHunters.Count} hunters alive,\t{_livingProps.Count}/{_allProps.Count} props alive");
                 };
 
-                Console.WriteLine("Registered player connect/disconnect delegates.");
+                Logger.Info("Registered player connect/disconnect delegates.");
             });
         }
 
@@ -435,7 +434,7 @@ namespace PropHunt.HKMP
         /// <param name="huntersWin">Whether the Hunters team won the round</param>
         private void EndRound(bool huntersWin)
         {
-            Console.WriteLine("Rounded ended; hunters win: " + huntersWin);
+            Logger.Info("Rounded ended; hunters win: " + huntersWin);
             _roundStarted = false;
             _roundTimer.Change(Timeout.Infinite, Timeout.Infinite);
             _intervalTimer.Change(Timeout.Infinite, Timeout.Infinite);
