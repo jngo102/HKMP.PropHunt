@@ -14,7 +14,7 @@ This mod is an HKMP add-on that adds the game mode "Prop Hunt" to Hollow Knight.
 ### Props
 - You will have a set number of seconds to find a background object to change into and hide from the Hunters. Your goal is to survive until the round ends.
 - You can change into most objects that are breakable background objects. The size of the object will determine how much health you have; the bigger the object is, the more health you have, but the more visible you are and the larger your hitbox is, so you may not fit in some spaces.
-- You can select, translate, rotate, and scale your prop using a set of key inputs. These can be defined in the main menu or pause menu, under `Options > Mods > Prop Hunt`.
+- You can select, translate, rotate, and scale your prop using a set of key inputs. These can be defined in the main menu or pause menu, under `Options > Mods > Prop Hunt Options`.
 - If there are no breakable background objects nearby and you press the key to select a prop, then you will turn back into the Knight.
 - You do not have the ability to counter-attack against Hunters as a Prop. You will only be able to hide and run away.
 

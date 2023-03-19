@@ -1,14 +1,13 @@
-using PropHunt.Util;
 using UnityEngine;
 
-namespace PropHunt.Behaviors
+namespace PropHunt.Client.Behaviors
 {
     [RequireComponent(typeof(HeroController))]
     internal class Hunter : MonoBehaviour
     {
-        private void OnDisable() => LoadoutUtil.RevertHunterLoadout();
+        private void OnDisable() => LoadoutManager.RevertHunterLoadout();
 
-        private void OnEnable() => LoadoutUtil.SetHunterLoadout();
+        private void OnEnable() => LoadoutManager.SetHunterLoadout();
 
         /// <summary>
         /// Show blanker and deactivate controls.

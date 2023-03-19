@@ -8,13 +8,13 @@ namespace PropHunt.Input
     public class PropActions : PlayerActionSet
     {
         public PlayerAction SelectKey { get; }
-        public PlayerAction TranslateXYKey { get; }
+        public PlayerAction TranslateXyKey { get; }
         public PlayerAction TranslateZKey { get; }
         public PlayerAction RotateKey { get; }
         public PlayerAction ScaleKey { get; }
 
         public PlayerAction SelectButton { get; }
-        public PlayerAction TranslateXYButton { get; }
+        public PlayerAction TranslateXyButton { get; }
         public PlayerAction TranslateZButton { get; }
         public PlayerAction RotateButton { get; }
         public PlayerAction ScaleButton { get; }
@@ -22,8 +22,8 @@ namespace PropHunt.Input
         public PropActions()
         {
             SelectKey = CreatePlayerAction("Select Key");
-            TranslateXYKey = CreatePlayerAction("Translate XY Key");
-            TranslateXYKey.StateThreshold = 0.3f;
+            TranslateXyKey = CreatePlayerAction("Translate Xy Key");
+            TranslateXyKey.StateThreshold = 0.3f;
             TranslateZKey = CreatePlayerAction("Translate Z Key");
             TranslateZKey.StateThreshold = 0.3f;
             RotateKey = CreatePlayerAction("Rotate Key");
@@ -32,8 +32,8 @@ namespace PropHunt.Input
             ScaleKey.StateThreshold = 0.3f;
 
             SelectButton = CreatePlayerAction("Select Button");
-            TranslateXYButton = CreatePlayerAction("Translate XY Button");
-            TranslateXYButton.StateThreshold = 0.3f;
+            TranslateXyButton = CreatePlayerAction("Translate Xy Button");
+            TranslateXyButton.StateThreshold = 0.3f;
             TranslateZButton = CreatePlayerAction("Translate Z Button");
             TranslateZButton.StateThreshold = 0.3f;
             RotateButton = CreatePlayerAction("Rotate Button");
@@ -47,9 +47,9 @@ namespace PropHunt.Input
             return SelectKey.WasPressed || SelectButton.WasPressed;
         }
 
-        public bool TranslateXYWasPressed()
+        public bool TranslateXyWasPressed()
         {
-            return TranslateXYKey.WasPressed || TranslateXYButton.WasPressed;        }
+            return TranslateXyKey.WasPressed || TranslateXyButton.WasPressed;        }
 
         public bool TranslateZWasPressed()
         {

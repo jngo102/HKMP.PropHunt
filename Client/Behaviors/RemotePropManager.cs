@@ -1,12 +1,23 @@
 using UnityEngine;
 
-namespace PropHunt.Behaviors
+namespace PropHunt.Client.Behaviors
 {
     [RequireComponent(typeof(MeshRenderer))]
     internal class RemotePropManager : MonoBehaviour
     {
+        /// <summary>
+        /// The renderer for the remote player object.
+        /// </summary>
         private MeshRenderer _meshRend;
+
+        /// <summary>
+        /// The remote player's username object.
+        /// </summary>
         private GameObject _username;
+        
+        /// <summary>
+        /// The renderer for the remote player's prop.
+        /// </summary>
         private SpriteRenderer _propSprite;
         public GameObject Prop { get; private set; }
 
@@ -25,7 +36,7 @@ namespace PropHunt.Behaviors
         /// <summary>
         /// Set the remote player's prop's sprite.
         /// </summary>
-        /// <param name="sprite">The sprite to change to</param>
+        /// <param name="sprite">The sprite to change to.</param>
         public void SetPropSprite(Sprite sprite)
         {
             if (_propSprite == null) return;
@@ -52,7 +63,6 @@ namespace PropHunt.Behaviors
         /// </summary>
         private void ResetPropTransform()
         {
-            PropHunt.Instance.Log("Resetting prop transform");
             Prop.transform.localPosition = Vector3.zero;
             Prop.transform.rotation = Quaternion.identity;
             Prop.transform.localScale = Vector3.one;
