@@ -100,14 +100,6 @@
 			<HintPath>$(LocalRefs)/UnityEngine.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference Include="UnityEngine.AssetBundleModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-			<HintPath>$(LocalRefs)/UnityEngine.AssetBundleModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.AudioModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-			<HintPath>$(LocalRefs)/UnityEngine.AudioModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
 		<Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>$(LocalRefs)/UnityEngine.CoreModule.dll</HintPath>
 			<Private>False</Private>
@@ -144,7 +136,7 @@
 	<ItemGroup>
 		<None Include=".gitignore" />
 		<None Include="ReadMe.md" />
-		<EmbeddedResource Include="Images/TranslateXy.png" />
+		<EmbeddedResource Include="Images/TranslateXY.png" />
 		<EmbeddedResource Include="Images/TranslateZ.png" />
 		<EmbeddedResource Include="Images/Rotate.png" />
 		<EmbeddedResource Include="Images/ScaleUp.png" />
