@@ -1,9 +1,12 @@
 ﻿using UnityEngine;
 
-namespace PropHunt.Util
+namespace PropHunt.Client
 {
+    /// <summary>
+    /// Handles assigning and removing loadouts for players during a round of prop hunt.
     /// Portions taken from https://github.com/Extremelyd1/HKMP-Tag/blob/master/Client/LoadoutUtil.cs
-    internal static class LoadoutUtil
+    /// </summary>
+    internal static class LoadoutManager
     {
         private static int _originalHP;
         private static int _originalMaxHP;
