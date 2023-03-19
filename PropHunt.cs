@@ -1,59 +1,46 @@
 ﻿using Hkmp.Api.Client;
 using Hkmp.Api.Server;
 using Modding;
-using Modding.Utils;
-using PropHunt.HKMP;
-using PropHunt.UI;
+using PropHunt.Client;
+using PropHunt.Server;
 using Satchel.BetterMenus;
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
-using UnityEngine;
-using UObject = UnityEngine.Object;
 
 namespace PropHunt
 {
+    /// <summary>
+    /// The main prop hunt mod class.
+    /// </summary>
     internal class PropHunt : Mod, IGlobalSettings<GlobalSettings>, ICustomMenuMod
     {
-        internal static PropHunt Instance { get; private set; }
-        
-        internal static PropHuntClientAddon Client;
-        internal static PropHuntServerAddon Server;
-
+        /// <summary>
+        /// The prop hunt mod's menu.
+        /// </summary>
         private Menu _menu;
 
-        public Dictionary<string, Sprite> PropIcons { get; } = new();
-
-        public GlobalSettings Settings { get; private set; } = new();
+        /// <summary>
+        /// Global settings for the mod.
+        /// </summary>
+        public static GlobalSettings Settings { get; private set; } = new();
 
         public PropHunt() : base(Constants.NAME) { }
 
-        public override string GetVersion() => Assembly.GetExecutingAssembly().GetName().Version.ToString();
+        /// <inheritdoc />
+        public override string GetVersion() => Constants.Version;
 
+        /// <inheritdoc />
         public override void Initialize()
         {
-            Instance ??= this;
-
-            LoadAssets();
-
-            if (Server == null)
-            {
-                Server = new PropHuntServerAddon();
-                ServerAddon.RegisterAddon(Server);
-            }
-
-            if (Client == null)
-            {
-                Client = new PropHuntClientAddon();
-                ClientAddon.RegisterAddon(Client);
-            }
-                
-            GameCameras.instance.hudCanvas.GetOrAddComponent<UIPropHunt>();
+            ClientAddon.RegisterAddon(new PropHuntClientAddon());
+            ServerAddon.RegisterAddon(new PropHuntServerAddon());
         }
 
+        /// <inheritdoc />
         public void OnLoadGlobal(GlobalSettings settings) => Settings = settings;
+
+        /// <inheritdoc />
         public GlobalSettings OnSaveGlobal() => Settings;
 
+        /// <inheritdoc />
         public MenuScreen GetMenuScreen(MenuScreen modListMenu, ModToggleDelegates? toggleDelegates)
         {
             _menu ??= new Menu(Constants.NAME, new Element[] {
@@ -64,8 +51,8 @@ namespace PropHunt
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Move Prop Around",
-                    Settings.Bindings.TranslateXYKey,
-                    Settings.Bindings.TranslateXYButton
+                    Settings.Bindings.TranslateXyKey,
+                    Settings.Bindings.TranslateXyButton
                 ),
                 Blueprints.KeyAndButtonBind(
                     "Move Prop In/Out",
@@ -87,33 +74,7 @@ namespace PropHunt
             return _menu.GetMenuScreen(modListMenu);
         }
 
+        /// <inheritdoc />
         public bool ToggleButtonInsideMenu { get; }
-    
-        /// <summary>
-        /// Load asset bundles embedded in the assembly.
-        /// </summary>
-        private void LoadAssets()
-        {
-            var assembly = Assembly.GetExecutingAssembly();
-            foreach (string resourceName in assembly.GetManifestResourceNames())
-            {
-                if (!resourceName.Contains("prophunt")) continue;
-                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-                {
-                    if (stream == null) continue;
-
-                    var bundle = AssetBundle.LoadFromStream(stream);
-
-                    foreach (var icon in bundle.LoadAllAssets<Texture2D>())
-                    {
-                        var iconSprite = Sprite.Create(icon, new Rect(0, 0, icon.width, icon.height), Vector2.one * 0.5f);
-                        UObject.DontDestroyOnLoad(iconSprite);
-                        PropIcons.Add(icon.name, iconSprite);
-                    }
-
-                    stream.Dispose();
-                }
-            }
-        }
     }
 }
