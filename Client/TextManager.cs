@@ -53,10 +53,7 @@ namespace PropHunt.Client
         /// </summary>
         public static void Initialize()
         {
-            SetupDreamMsg();
-            SetupGraceTimer();
-            SetupRoundTimer();
-
+            On.HUDCamera.OnEnable += OnHudCameraEnable;
             ModHooks.LanguageGetHook += (key, sheetTitle, orig) =>
             {
                 return key == CONVO_TITLE ? _convoTitle : orig;
@@ -124,6 +121,18 @@ namespace PropHunt.Client
         public static void ShowHunterDeathMessage(string username, byte index)
         {
             ShowText($"Hunter {username} {HunterDeathSuffixes[index]}");
+        }
+
+        /// <summary>
+        /// Set up the prop hunt user interface only once the HUD Camera is enabled so TextMeshPro can initialize.
+        /// </summary>
+        private static void OnHudCameraEnable(On.HUDCamera.orig_OnEnable orig, HUDCamera self)
+        {
+            orig(self);
+
+            SetupDreamMsg();
+            SetupGraceTimer();
+            SetupRoundTimer();
         }
 
         /// <summary>

@@ -54,8 +54,8 @@ namespace PropHunt.Client
             On.HeroController.CanCast += RemoveCast;
             On.HeroController.CanNailCharge += RemoveNailCharge;
             // Prevent float
-            HeroController.instance.gameObject.LocateMyFSM("Nail Arts").SendEvent("Fsm CANCEL");
-            HeroController.instance.gameObject.LocateMyFSM("Spell Control").SendEvent("Fsm CANCEL");
+            HeroController.instance.gameObject.LocateMyFSM("Nail Arts").SendEvent("FSM CANCEL");
+            HeroController.instance.gameObject.LocateMyFSM("Spell Control").SendEvent("FSM CANCEL");
         }
 
         /// <summary>
