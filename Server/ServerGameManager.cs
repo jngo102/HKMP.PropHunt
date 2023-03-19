@@ -92,7 +92,7 @@ namespace PropHunt.Server
         /// <summary>
         /// A logger for the server game manager.
         /// </summary>
-        private ILogger _logger;
+        private readonly ILogger _logger;
 
         /// <summary>
         /// Constructor for the server game manager.

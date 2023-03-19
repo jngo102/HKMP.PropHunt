@@ -247,7 +247,7 @@ namespace PropHunt.Client
                         hunter.BeginGracePeriod();
                     }
                     
-                    TextManager.ShowText("You are a hunter!");
+                    TextManager.DisplayDreamMessage("You are a hunter!");
 
                     HeroController.instance.SetMPCharge(198);
                     GameManager.instance.soulOrb_fsm.SendEvent("MP GAIN");
@@ -263,7 +263,7 @@ namespace PropHunt.Client
 
                     propManager.ClearProp();
                     
-                    TextManager.ShowText("You are a prop!");
+                    TextManager.DisplayDreamMessage("You are a prop!");
                 }
             }
 
@@ -287,7 +287,7 @@ namespace PropHunt.Client
             var hunter = hc.GetComponent<Hunter>();
             hc.GetComponent<HeroAnimationController>().PlayIdle();
 
-            ModHooks.BeforePlayerDeadHook -= ComponentManager.BroadcastPlayerDeath;
+            ModHooks.BeforePlayerDeadHook -= BroadcastPlayerDeath;
             On.Breakable.Break -= OnBreakableBreak;
             USceneManager.activeSceneChanged -= PatchManager.OnSceneChange;
 
@@ -305,7 +305,7 @@ namespace PropHunt.Client
             propManager.enabled = true;
             TextManager.SetRemainingGraceTime(0);
             TextManager.SetRemainingRoundTime(0);            
-            TextManager.ShowText($"{(huntersWin ? "Hunters" : "Props")} win!");
+            TextManager.DisplayDreamMessage($"{(huntersWin ? "Hunters" : "Props")} win!");
         }
 
         /// <summary>

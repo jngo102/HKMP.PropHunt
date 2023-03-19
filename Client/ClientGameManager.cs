@@ -104,7 +104,7 @@ namespace PropHunt.Client
             {
                 string text = $"Player {player.Username} has died!" +
                               $"\nProps remaining: {propsRemaining}/{propsTotal}";
-                TextManager.ShowText(text);
+                TextManager.DisplayDreamMessage(text);
                 _logger.Info(text);
             }
         }
@@ -124,7 +124,7 @@ namespace PropHunt.Client
                               $"\nProps remaining: {propsRemaining}/{propsTotal}";
 
                 _logger.Info(text);
-                TextManager.ShowText(text);
+                TextManager.DisplayDreamMessage(text);
             }
         }
 

@@ -11,6 +11,8 @@
 		<AssemblyVersion>0.0.2.1</AssemblyVersion>
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 		<LangVersion>latest</LangVersion>
+		<!-- Path to DLL references required to build mod -->
+		<LocalRefs>References</LocalRefs>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
 		<DebugSymbols>true</DebugSymbols>
@@ -18,166 +20,151 @@
 		<Optimize>false</Optimize>
 		<OutputPath>bin\Debug\</OutputPath>
 		<DefineConstants>DEBUG;TRACE</DefineConstants>
-		<ErrorReport>
-			prompt</ErrorReport>
+		<ErrorReport>prompt</ErrorReport>
 		<WarningLevel>4</WarningLevel>
-		<!-- Path to DLL references required to build mod -->
-		<RefsPrefix Condition="$([MSBuild]::IsOSPlatform('Linux'))">~/.local/share</RefsPrefix>
-		<RefsPrefix Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(MSBuildProgramFiles32)</RefsPrefix>
-		<LocalRefs>$(RefsPrefix)/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed</LocalRefs>
+		<ModsPrefix Condition="$([MSBuild]::IsOSPlatform('Linux'))">~/.local/share</ModsPrefix>
+		<ModsPrefix Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(MSBuildProgramFiles32)</ModsPrefix>
 		<!-- Path to mods folder of one installation of Hollow Knight -->
-		<ModsPath1>$(LocalRefs)/Mods</ModsPath1>
-		<GameDir2>$(MSBuildProgramFiles32)/GOG Galaxy/Games/Hollow Knight</GameDir2>
+		<ModsPath1>$(ModsPrefix)/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed/Mods</ModsPath1>
 		<!-- Path to mods folder of another installation of Hollow Knight -->
-		<ModsPath2>$(GameDir2)/Hollow Knight_Data/Managed/Mods</ModsPath2>
+		<ModsPath2>$(ModsPrefix)/GOG Galaxy/Games/Hollow Knight/Hollow Knight_Data/Managed/Mods</ModsPath2>
 		<!-- Path to additional cloud drive for use on another PC -->
 		<ModsPath3>C:\Users\$(USERNAME)\OneDrive</ModsPath3>
+		<!-- Path to standalone server output folder -->
 		<ServerPath>C:\HK\Modding\HollowKnight\HKMP\HKMP\HKMPServer\bin\Debug\net472</ServerPath>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
-		<DebugType>
-			pdbonly</DebugType>
+		<DebugType>pdbonly</DebugType>
 		<Optimize>true</Optimize>
 		<OutputPath>bin\Release\</OutputPath>
 		<DefineConstants>TRACE</DefineConstants>
 		<ErrorReport>prompt</ErrorReport>
-		<WarningLevel>
-			4</WarningLevel>
+		<WarningLevel>4</WarningLevel>
 		<!-- Path to mods folder of another installation of Hollow Knight -->
 		<ModsPath1>References</ModsPath1>
-		<!-- Path to DLL references required to build mod -->
-		<LocalRefs>References</LocalRefs>
 		<!-- The folder that exports will be generated in -->
 		<ExportDir>Output</ExportDir>
 	</PropertyGroup>
 	<Target Condition="'$(Configuration)' == 'Debug'" Name="CopyMod" AfterTargets="PostBuildEvent">
-		<RemoveDir Condition="Exists('$(ModsPath1)/$(TargetName)')"
-			Directories="$(ModsPath1)/$(TargetName)" />
+		<RemoveDir Condition="Exists('$(ModsPath1)/$(TargetName)')" Directories="$(ModsPath1)/$(TargetName)" />
 		<MakeDir Directories="$(ModsPath1)/$(TargetName)" />
-		<Copy Condition="Exists('$(ModsPath1)/$(TargetName)')"
-			SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb"
-			DestinationFolder="$(ModsPath1)/$(TargetName)" />
-		<RemoveDir Condition="Exists('$(ModsPath2)/$(TargetName)')"
-			Directories="$(ModsPath2)/$(TargetName)" />
+		<Copy Condition="Exists('$(ModsPath1)/$(TargetName)')" SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath1)/$(TargetName)" />
+		<RemoveDir Condition="Exists('$(ModsPath2)/$(TargetName)')" Directories="$(ModsPath2)/$(TargetName)" />
 		<MakeDir Condition="Exists('$(ModsPath2)')" Directories="$(ModsPath2)/$(TargetName)" />
-		<Copy Condition="Exists('$(ModsPath2)/$(TargetName)')"
-			SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb"
-			DestinationFolder="$(ModsPath2)/$(TargetName)" />
-		<RemoveDir Condition="Exists('$(ModsPath3)/$(TargetName)')"
-			Directories="$(ModsPath3)/$(TargetName)" />
-		<Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb"
-			DestinationFolder="$(ModsPath3)" />
-		<RemoveDir Condition="Exists('$(ServerPath)/$(TargetName)')"
-			Directories="$(ServerPath)/$(TargetName)" />
-		<Copy Condition="Exists('$(ServerPath)')"
-			SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb"
-			DestinationFolder="$(ServerPath)" />
-		<!--<Exec
-		Command="start &quot;$(GameDir2)/Hollow Knight.exe&quot;" />-->
+		<Copy Condition="Exists('$(ModsPath2)/$(TargetName)')" SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath2)/$(TargetName)" />
+		<RemoveDir Condition="Exists('$(ModsPath3)/$(TargetName)')" Directories="$(ModsPath3)/$(TargetName)" />
+		<Copy Condition="Exists('$(ModsPath3)')" SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ModsPath3)" />
+		<Copy Condition="Exists('$(ServerPath)')" SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ServerPath)" />
+		<!--<Exec Command="start &quot;$(GameDir2)/Hollow Knight.exe&quot;" />-->
 		<!-- Uncomment this if you have the game installed on Steam, Steam is in your PATH
 		environment variable, and you want to run the game upon build. -->
 		<Exec Command="steam steam://rungameid/367520" />
 	</Target>
-	<Target Condition="'$(Configuration)' == 'Release'" Name="PackageMod"
-		AfterTargets="PostBuildEvent">
+	<Target Condition="'$(Configuration)' == 'Release'" Name="PackageMod" AfterTargets="PostBuildEvent">
 		<RemoveDir Condition="Exists('$(ExportDir)')" Directories="$(ExportDir)" />
 		<MakeDir Directories="$(ExportDir)" />
 		<MakeDir Directories="$(ExportDir)/zip" />
 		<Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ExportDir)" />
-		<Copy SourceFiles="ReadMe.md;$(TargetPath);$(TargetDir)/$(TargetName).pdb"
-			DestinationFolder="$(ExportDir)/zip/" />
-		<ZipDirectory SourceDirectory="$(ExportDir)/zip"
-			DestinationFile="$(ExportDir)/$(TargetName).zip" />
+		<Copy SourceFiles="ReadMe.md;$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(ExportDir)/zip/" />
+		<ZipDirectory SourceDirectory="$(ExportDir)/zip" DestinationFile="$(ExportDir)/$(TargetName).zip" />
 		<RemoveDir Directories="$(ExportDir)/zip" />
 		<PropertyGroup>
 			<OutputFileString>
-				$(AssemblyVersion)</OutputFileString>
+				$(AssemblyVersion)
+			</OutputFileString>
 		</PropertyGroup>
-		<WriteLinesToFile File="Version.txt" Lines="$(OutputFileString)" Overwrite="true"
-			Encoding="UTF-8" />
+		<WriteLinesToFile File="Version.txt" Lines="$(OutputFileString)" Overwrite="true" Encoding="UTF-8" />
 	</Target>
 	<ItemGroup>
 		<Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/Assembly-CSharp.dll</HintPath>
+				$(LocalRefs)/Assembly-CSharp.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference
-			Include="MMHOOK_Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+		<Reference Include="MMHOOK_Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/MMHOOK_Assembly-CSharp.dll</HintPath>
+				$(LocalRefs)/MMHOOK_Assembly-CSharp.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="MMHOOK_PlayMaker">
 			<HintPath>
-				$(LocalRefs)/MMHOOK_PlayMaker.dll</HintPath>
+				$(LocalRefs)/MMHOOK_PlayMaker.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/Newtonsoft.Json.dll</HintPath>
+				$(LocalRefs)/Newtonsoft.Json.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="PlayMaker, Version=1.6.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/PlayMaker.dll</HintPath>
+				$(LocalRefs)/PlayMaker.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/UnityEngine.dll</HintPath>
+				$(LocalRefs)/UnityEngine.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference
-			Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+		<Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/UnityEngine.CoreModule.dll</HintPath>
+				$(LocalRefs)/UnityEngine.CoreModule.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference
-			Include="UnityEngine.ImageConversionModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+		<Reference Include="UnityEngine.ImageConversionModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/UnityEngine.ImageConversionModule.dll</HintPath>
+				$(LocalRefs)/UnityEngine.ImageConversionModule.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference
-			Include="UnityEngine.Physics2DModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+		<Reference Include="UnityEngine.Physics2DModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/UnityEngine.Physics2DModule.dll</HintPath>
+				$(LocalRefs)/UnityEngine.Physics2DModule.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference
-			Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+		<Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/UnityEngine.TextRenderingModule.dll</HintPath>
+				$(LocalRefs)/UnityEngine.TextRenderingModule.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/UnityEngine.UI.dll</HintPath>
+				$(LocalRefs)/UnityEngine.UI.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference
-			Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+		<Reference Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
-				$(LocalRefs)/UnityEngine.UIModule.dll</HintPath>
+				$(LocalRefs)/UnityEngine.UIModule.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="HKMP">
 			<HintPath>
-				$(ModsPath1)/HKMP/HKMP.dll</HintPath>
+				$(ModsPath1)/HKMP/HKMP.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="Satchel">
 			<HintPath>
-				$(ModsPath1)/Satchel/Satchel.dll</HintPath>
+				$(ModsPath1)/Satchel/Satchel.dll
+			</HintPath>
 			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
 		<None Include=".gitignore" />
 		<None Include="ReadMe.md" />
-		<EmbeddedResource Include="Images/TranslateXY.png" />
+		<EmbeddedResource Include="Images/TranslateXy.png" />
 		<EmbeddedResource Include="Images/TranslateZ.png" />
 		<EmbeddedResource Include="Images/Rotate.png" />
 		<EmbeddedResource Include="Images/ScaleUp.png" />
