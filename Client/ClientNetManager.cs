@@ -76,6 +76,11 @@ namespace PropHunt.Client
         /// </summary>
         private static IClientAddonNetworkSender<FromClientToServerPackets> _sender;
 
+        /// <summary>
+        /// Constructor for the client net manager.
+        /// </summary>
+        /// <param name="addon">The client add-on instance.</param>
+        /// <param name="netClient">The net client instance.</param>
         public ClientNetManager(ClientAddon addon, INetClient netClient)
         {
             _sender = netClient.GetNetworkSender<FromClientToServerPackets>(addon);

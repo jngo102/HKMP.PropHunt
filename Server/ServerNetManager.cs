@@ -56,8 +56,16 @@ namespace PropHunt.Server
         /// </summary>
         public event Action<StartRoundFromClientToServerData> StartRoundEvent;
 
+        /// <summary>
+        /// Network sender of packets from the server to a client.
+        /// </summary>
         private static IServerAddonNetworkSender<FromServerToClientPackets> _sender;
 
+        /// <summary>
+        /// Constructor for the server net manager.
+        /// </summary>
+        /// <param name="addon">The server add-on instance.</param>
+        /// <param name="netServer">The net server instance.</param>
         public ServerNetManager(ServerAddon addon, INetServer netServer)
         {
             _sender = netServer.GetNetworkSender<FromServerToClientPackets>(addon);

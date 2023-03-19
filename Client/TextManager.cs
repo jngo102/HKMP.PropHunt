@@ -152,7 +152,6 @@ namespace PropHunt.Client
             };
 
             graceTimer.transform.SetParent(GameCameras.instance.hudCanvas.transform.Find("Geo Counter"));
-            Modding.Logger.Log("Geo counter active? " + GameCameras.instance.hudCanvas.transform.Find("Geo Counter").gameObject.activeSelf);
             graceTimer.transform.localPosition = new Vector3(-9, 4.85f, 40);
             graceTimer.transform.localScale = Vector3.one * 0.1527f;
             _graceTextMesh = graceTimer.AddComponent<TextMeshPro>();
