@@ -8,7 +8,7 @@
 		<Product>PropHunt</Product>
 		<Description>HKMP Prop Hunt add-on.</Description>
 		<Copyright>Copyright © jngo102 2023</Copyright>
-		<AssemblyVersion>0.0.2.1</AssemblyVersion>
+		<AssemblyVersion>0.0.2.2</AssemblyVersion>
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 		<LangVersion>latest</LangVersion>
 		<!-- Path to DLL references required to build mod -->

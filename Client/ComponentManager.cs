@@ -13,7 +13,7 @@ using USceneManager = UnityEngine.SceneManagement.SceneManager;
 namespace PropHunt.Client
 {
     /// <summary>
-    /// Manage components related to the prop hunt game mode.
+    /// Manages components related to the prop hunt game mode.
     /// </summary>
     internal static class ComponentManager
     {

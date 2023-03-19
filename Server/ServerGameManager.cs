@@ -398,6 +398,12 @@ namespace PropHunt.Server
         /// <param name="huntersWin"></param>
         private void EndRound(bool huntersWin)
         {
+            _logger.Info("Rounded ended; hunters won: " + huntersWin);
+
+            _roundStarted = false;
+            _intervalTimer.Stop();
+            _roundTimer.Stop();
+
             _netManager.BroadcastPacket(FromServerToClientPackets.EndRound, new EndRoundFromServerToClientData
             {
                 HuntersWin = huntersWin,

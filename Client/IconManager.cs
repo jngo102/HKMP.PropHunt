@@ -43,27 +43,27 @@ namespace PropHunt.Client
         /// <summary>
         /// The translate Xy icon.
         /// </summary>
-        private static Sprite translateXyIcon;
+        private static Sprite _translateXyIcon;
 
         /// <summary>
         /// The translate Z icon.
         /// </summary>
-        private static Sprite translateZIcon;
+        private static Sprite _translateZIcon;
 
         /// <summary>
         /// The rotate icon.
         /// </summary>
-        private static Sprite rotateIcon;
+        private static Sprite _rotateIcon;
 
         /// <summary>
         /// The scale up icon.
         /// </summary>
-        private static Sprite scaleUpIcon;
+        private static Sprite _scaleUpIcon;
 
         /// <summary>
         /// The scale down icon.
         /// </summary>
-        private static Sprite scaleDownIcon;
+        private static Sprite _scaleDownIcon;
         
         /// <summary>
         /// Initialize the icon manager.
@@ -94,15 +94,15 @@ namespace PropHunt.Client
                     var iconSprite = Sprite.Create(iconTexture, new Rect(0, 0, iconTexture.width, iconTexture.height), Vector2.one * 0.5f);
                     Object.DontDestroyOnLoad(iconSprite);
                     if (resourceName.Contains(IconType.TranslateXy.ToString()))
-                        translateXyIcon = iconSprite;
+                        _translateXyIcon = iconSprite;
                     else if (resourceName.Contains(IconType.TranslateZ.ToString()))
-                        translateZIcon = iconSprite;
+                        _translateZIcon = iconSprite;
                     else if (resourceName.Contains(IconType.Rotate.ToString()))
-                        rotateIcon = iconSprite;
+                        _rotateIcon = iconSprite;
                     else if (resourceName.Contains(IconType.ScaleUp.ToString()))
-                        scaleUpIcon = iconSprite;
+                        _scaleUpIcon = iconSprite;
                     else if (resourceName.Contains(IconType.ScaleDown.ToString()))
-                        scaleDownIcon = iconSprite;
+                        _scaleDownIcon = iconSprite;
 
                     stream.Dispose();
                 }
@@ -119,15 +119,15 @@ namespace PropHunt.Client
             switch (iconType)
             {
                 case IconType.TranslateXy:
-                    return translateXyIcon;
+                    return _translateXyIcon;
                 case IconType.TranslateZ:
-                    return translateZIcon;
+                    return _translateZIcon;
                 case IconType.Rotate:
-                    return rotateIcon;
+                    return _rotateIcon;
                 case IconType.ScaleUp:
-                    return scaleUpIcon;
+                    return _scaleUpIcon;
                 case IconType.ScaleDown:
-                    return scaleDownIcon;
+                    return _scaleDownIcon;
             }
 
             return null;
