@@ -2,6 +2,9 @@
 
 namespace PropHunt
 {
+    /// <summary>
+    /// Static class containing constant values for the prop hunt mod.
+    /// </summary>
     internal static class Constants
     {
         /// <summary>
@@ -9,6 +12,9 @@ namespace PropHunt
         /// </summary>
         public const string NAME = "PropHunt";
 
+        /// <summary>
+        /// The mod version.
+        /// </summary>
         public static string Version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
     }
 }

@@ -1,6 +1,5 @@
 ﻿using Hkmp.Api.Client;
 using ILogger = Hkmp.Logging.ILogger;
-using USceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace PropHunt.Client
 {

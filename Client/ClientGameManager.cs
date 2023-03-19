@@ -25,6 +25,11 @@ namespace PropHunt.Client
         /// </summary>
         private ILogger _logger;
 
+        /// <summary>
+        /// Constructor for the client game manager.
+        /// </summary>
+        /// <param name="addon">The client add-on instance.</param>
+        /// <param name="clientApi">The client API instance.</param>
         public ClientGameManager(PropHuntClientAddon addon, IClientApi clientApi)
         {
             _logger = addon.Logger;

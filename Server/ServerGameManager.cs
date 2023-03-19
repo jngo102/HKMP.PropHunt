@@ -94,6 +94,11 @@ namespace PropHunt.Server
         /// </summary>
         private ILogger _logger;
 
+        /// <summary>
+        /// Constructor for the server game manager.
+        /// </summary>
+        /// <param name="addon">The server add-on instance.</param>
+        /// <param name="serverApi">The server API instance.</param>
         public ServerGameManager(PropHuntServerAddon addon, IServerApi serverApi)
         {
             _logger = addon.Logger;
