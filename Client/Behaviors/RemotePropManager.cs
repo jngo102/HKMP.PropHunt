@@ -2,6 +2,9 @@ using UnityEngine;
 
 namespace PropHunt.Client.Behaviors
 {
+    /// <summary>
+    /// Behavior for handling a remote player's prop.
+    /// </summary>
     [RequireComponent(typeof(MeshRenderer))]
     internal class RemotePropManager : MonoBehaviour
     {

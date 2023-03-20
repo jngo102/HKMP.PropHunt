@@ -8,6 +8,9 @@ using UnityEngine;
 
 namespace PropHunt.Client.Behaviors
 {
+    /// <summary>
+    /// Behavior for handling the local player's prop.
+    /// </summary>
     [RequireComponent(typeof(HeroController))]
     [RequireComponent(typeof(MeshRenderer))]
     internal class LocalPropManager : MonoBehaviour

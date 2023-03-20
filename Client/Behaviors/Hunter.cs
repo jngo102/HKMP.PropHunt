@@ -2,6 +2,9 @@ using UnityEngine;
 
 namespace PropHunt.Client.Behaviors
 {
+    /// <summary>
+    /// Behavior for the hunter.
+    /// </summary>
     [RequireComponent(typeof(HeroController))]
     internal class Hunter : MonoBehaviour
     {
