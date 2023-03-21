@@ -19,10 +19,9 @@ jobs:
             apiPath: References/
             dependencyFilePath: ModDependencies.txt
 
-      - name: Keep only necessary modules
+      - name: Keep only necessary modules   
         run: |
-          cd References &&
-          rm -v !("HKMP"|"Satchel"|"Assembly-CSharp.dll"|"MMHOOK_Assembly-CSharp.dll"|"MMHOOK_PlayMaker.dll"|"Newtonsoft.Json.dll"|"PlayMaker.dll"|"UnityEngine.CoreModule.dll"|"UnityEngine.dll"|"UnityEngine.ImageConversionModule.dll"|"UnityEngine.Physics2DModule.dll"|"UnityEngine.TextRenderingModule.dll"|"UnityEngine.UI.dll"|"UnityEngine.UIModule.dll")
+          cd References && rm -v !("HKMP"|"Satchel"|"Assembly-CSharp.dll"|"MMHOOK_Assembly-CSharp.dll"|"MMHOOK_PlayMaker.dll"|"Newtonsoft.Json.dll"|"PlayMaker.dll"|"UnityEngine.CoreModule.dll"|"UnityEngine.dll"|"UnityEngine.ImageConversionModule.dll"|"UnityEngine.Physics2DModule.dll"|"UnityEngine.TextRenderingModule.dll"|"UnityEngine.UI.dll"|"UnityEngine.UIModule.dll")
             
       - name: Setup MSBuild
         run: |
