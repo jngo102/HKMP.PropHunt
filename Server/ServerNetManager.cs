@@ -56,6 +56,12 @@ namespace PropHunt.Server
         /// </summary>
         public event Action<StartRoundFromClientToServerData> StartRoundEvent;
 
+        
+        /// <summary>
+        /// Event that is invoked when a player requests to toggle automated rounds.
+        /// </summary>
+        public event Action<ToggleAutomationFromClientToServerData> ToggleAutomationEvent;
+
         /// <summary>
         /// Network sender of packets from the server to a client.
         /// </summary>
@@ -107,6 +113,10 @@ namespace PropHunt.Server
             receiver.RegisterPacketHandler<StartRoundFromClientToServerData>(
                 FromClientToServerPackets.StartRound,
                 (_, packetData) => StartRoundEvent?.Invoke(packetData));
+
+            receiver.RegisterPacketHandler<ToggleAutomationFromClientToServerData>(
+                FromClientToServerPackets.ToggleAutomation,
+                (_, packetData) => ToggleAutomationEvent?.Invoke(packetData));
         }
 
         /// <summary>
@@ -157,6 +167,8 @@ namespace PropHunt.Server
                     return new EndRoundFromClientToServerData();
                 case FromClientToServerPackets.StartRound:
                     return new StartRoundFromClientToServerData();
+                case FromClientToServerPackets.ToggleAutomation:
+                    return new ToggleAutomationFromClientToServerData();
             }
 
             return null;

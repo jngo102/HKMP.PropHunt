@@ -49,6 +49,11 @@
         /// Request to start a new round.
         /// </summary>
         StartRound,
+
+        /// <summary>
+        /// Request to toggle automated rounds.
+        /// </summary>
+        ToggleAutomation,
     }
 
     /// <summary>
@@ -90,6 +95,11 @@
         /// Update the round timer.
         /// </summary>
         UpdateRoundTimer,
+
+        /// <summary>
+        /// Update the round over timer.
+        /// </summary>
+        UpdateRoundOverTimer,
 
         /// <summary>
         /// Update a prop's position along the x- and y-axes.

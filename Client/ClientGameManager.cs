@@ -11,6 +11,11 @@ namespace PropHunt.Client
     internal class ClientGameManager
     {
         /// <summary>
+        /// The minimum number of players required before a round may start.
+        /// </summary>
+        private const ushort MinimumPlayers = 2;
+
+        /// <summary>
         /// The client API instance.
         /// </summary>
         private static IClientApi _clientApi;
@@ -55,6 +60,7 @@ namespace PropHunt.Client
                 OnPlayerLeftRound(packetData.PlayerId, packetData.PropsRemaining, packetData.PropsTotal);
             _netManager.UpdateGraceTimerEvent += packetData => OnUpdateGraceTimer(packetData.TimeRemaining);
             _netManager.UpdateRoundTimerEvent += packetData => OnUpdateRoundTimer(packetData.TimeRemaining);
+            _netManager.UpdateRoundOverTimerEvent += packetData => OnUpdateRoundOverTimer(packetData.TimeRemaining);
             _netManager.UpdatePropPositionXyEvent += packetData => ComponentManager.UpdateRemotePropPositionXy(packetData.PlayerId, packetData.X, packetData.Y);
             _netManager.UpdatePropPositionZEvent += packetData => ComponentManager.UpdateRemotePropPositionZ(packetData.PlayerId, packetData.Z);
             _netManager.UpdatePropRotationEvent += packetData => ComponentManager.UpdateRemotePropRotation(packetData.PlayerId, packetData.Rotation);
@@ -62,10 +68,8 @@ namespace PropHunt.Client
             _netManager.UpdatePropSpriteEvent += packetData => ComponentManager.UpdateRemotePropSprite(packetData.PlayerId,
                 packetData.SpriteName, packetData.SpriteBytes, packetData.PositionX, packetData.PositionY,
                 packetData.PositionZ, packetData.RotationZ, packetData.Scale);
-
-            Modding.Logger.Log("ClientGameManager initialized");
+            
             _clientApi.CommandManager.RegisterCommand(new PropHuntCommand());
-            Modding.Logger.Log("Registered prop hunt command");
 
             _clientApi.ClientManager.ConnectEvent += ComponentManager.OnLocalPlayerConnect;
             _clientApi.ClientManager.DisconnectEvent += ComponentManager.OnLocalPlayerDisconnect;
@@ -75,6 +79,57 @@ namespace PropHunt.Client
         public static object ChangeHkmpChatBoxType(Type type)
         {
             return Convert.ChangeType(_clientApi.UiManager.ChatBox, type);
+        }
+
+        /// <summary>
+        /// Start a new round.
+        /// </summary>
+        /// <param name="graceTime">The amount of initial grace time in seconds.</param>
+        /// <param name="roundTime">The amount of time in the round in seconds.</param>
+        public static void StartRound(byte graceTime, ushort roundTime)
+        {
+            var numPlayers = _clientApi.ClientManager.Players.Count;
+            if (numPlayers < MinimumPlayers)
+            {
+                TextManager.DisplayDreamMessage($"Not enough players to start a round! {MinimumPlayers} required, {numPlayers} connected.");
+                return;
+            }
+
+            ClientNetManager.SendPacket(
+                FromClientToServerPackets.StartRound,
+                new StartRoundFromClientToServerData
+                {
+                    GraceTime = graceTime,
+                    RoundTime = roundTime,
+                });
+        }
+
+        /// <summary>
+        /// End the current round.
+        /// </summary>
+        public static void EndRound()
+        {
+            ClientNetManager.SendPacket(
+                FromClientToServerPackets.EndRound,
+                new EndRoundFromClientToServerData());
+        }
+
+        /// <summary>
+        /// Set whether rounds will automatically start after a round ends.
+        /// </summary>
+        /// <param name="graceTime">The amount of initial grace time in seconds that the round automatically starts with.</param>
+        /// <param name="roundTime">The amount of time in seconds in an automated round.</param>
+        /// <param name="secondsBetweenRounds">The amount of time in seconds between automated rounds.</param>
+        public static void ToggleAutomation(byte graceTime, ushort roundTime, ushort secondsBetweenRounds)
+        {
+            ClientNetManager.SendPacket(
+                FromClientToServerPackets.ToggleAutomation,
+                new ToggleAutomationFromClientToServerData
+                {
+                    GraceTime = graceTime,
+                    RoundTime = roundTime,
+                    SecondsBetweenRounds = secondsBetweenRounds,
+                });
         }
 
         /// <summary>
@@ -144,6 +199,15 @@ namespace PropHunt.Client
         private void OnUpdateRoundTimer(ushort timeRemaining)
         {
             TextManager.SetRemainingRoundTime(timeRemaining);
+        }
+
+        /// <summary>
+        /// Called when the round over timer is updated.
+        /// </summary>
+        /// <param name="timeRemaining">The amount of time remaining in seconds.</param>
+        private void OnUpdateRoundOverTimer(ushort timeRemaining)
+        {
+            TextManager.SetRemainingRoundOverTime(timeRemaining);
         }
     }
 }

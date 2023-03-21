@@ -15,6 +15,11 @@ namespace PropHunt.Server
     internal class ServerGameManager
     {
         /// <summary>
+        /// The minimum number of players required before a round may start.
+        /// </summary>
+        private const ushort MinimumPlayers = 2;
+
+        /// <summary>
         /// A collection of all hunters playing.
         /// </summary>
         private readonly List<IServerPlayer> _allHunters = new();
@@ -65,6 +70,11 @@ namespace PropHunt.Server
         private Timer _roundTimer;
 
         /// <summary>
+        /// Timer that handles the length of time that a round is over for if rounds are automated.
+        /// </summary>
+        private Timer _roundOverTimer;
+
+        /// <summary>
         /// A date-time object that contains the time at which a round will end.
         /// </summary>
         private DateTime _dueTimeRound;
@@ -73,6 +83,11 @@ namespace PropHunt.Server
         /// A date-time object that contains the time at which the grace period will end.
         /// </summary>
         private DateTime _dueTimeGrace;
+
+        /// <summary>
+        /// A date-time object that contains the time at which a new automated round will start.
+        /// </summary>
+        private DateTime _dueTimeRoundOver;
 
         /// <summary>
         /// Timer that handles updating every player's timer each second.
@@ -95,6 +110,11 @@ namespace PropHunt.Server
         private readonly ILogger _logger;
 
         /// <summary>
+        /// An instance of server settings.
+        /// </summary>
+        private static ServerSettings _settings;
+
+        /// <summary>
         /// Constructor for the server game manager.
         /// </summary>
         /// <param name="addon">The server add-on instance.</param>
@@ -103,6 +123,9 @@ namespace PropHunt.Server
         {
             _logger = addon.Logger;
             _serverApi = serverApi;
+
+            _settings = ServerSettings.LoadFromFile();
+
             _netManager = new ServerNetManager(addon, serverApi.NetServer);
         }
 
@@ -120,14 +143,18 @@ namespace PropHunt.Server
             _netManager.UpdatePropSpriteEvent += (playerId, packetData) => OnUpdatePropSprite(playerId,
                 packetData.SpriteName, packetData.NumBytes, packetData.SpriteBytes, packetData.PositionX,
                 packetData.PositionY, packetData.PositionZ, packetData.RotationZ, packetData.Scale);
-            _netManager.StartRoundEvent += packetData => OnStartRound(packetData.GraceTime, packetData.RoundTime);
+            _netManager.StartRoundEvent += packetData => StartRound(packetData.GraceTime, packetData.RoundTime);
             _netManager.EndRoundEvent += _ => OnEndRound();
+            _netManager.ToggleAutomationEvent += packetData =>
+                ToggleAutomation(packetData.GraceTime, packetData.RoundTime, packetData.SecondsBetweenRounds);
 
             _intervalTimer = new Timer(1000);
-            _roundTimer = new Timer(1000);
+            _roundTimer = new Timer(_settings.RoundTimeSeconds * 1000);
+            _roundOverTimer = new Timer(_settings.SecondsBetweenRounds * 1000);
 
             _intervalTimer.Elapsed += IntervalTimerElapse;
             _roundTimer.Elapsed += RoundTimerElapse;
+            _roundOverTimer.Elapsed += RoundOverTimerElapse;
 
             _serverApi.ServerManager.PlayerConnectEvent += OnPlayerConnect;
             _serverApi.ServerManager.PlayerDisconnectEvent += OnPlayerDisconnect;
@@ -323,14 +350,28 @@ namespace PropHunt.Server
         }
 
         /// <summary>
-        /// Start a round based on a player's request.
+        /// Start a new round.
         /// </summary>
         /// <param name="graceTime">The amount of initial grace time in seconds.</param>
         /// <param name="roundTime">The amount of time in the round in seconds.</param>
-        private void OnStartRound(byte graceTime, ushort roundTime)
+        private void StartRound(byte graceTime, ushort roundTime)
         {
+            var numPlayers = _serverApi.ServerManager.Players.Count;
+            if (numPlayers < MinimumPlayers)
+            {
+                _logger.Warn($"Not enough players to start a round! {MinimumPlayers} required, {numPlayers} connected.");
+                return;
+            }
+
             _logger.Info($"Round started; Grace Time: {graceTime}, Round Time: {roundTime}");
+            
             _roundStarted = true;
+            
+            if (_settings.Automated)
+            {
+                _roundOverTimer.Stop();
+            }
+
             var players = _serverApi.ServerManager.Players.ToList();
             players.Shuffle();
             int halfCount = players.Count / 2;
@@ -401,8 +442,25 @@ namespace PropHunt.Server
             _logger.Info("Rounded ended; hunters won: " + huntersWin);
 
             _roundStarted = false;
-            _intervalTimer.Stop();
+            if (_settings.Automated)
+            {
+                _intervalTimer.Start();
+            }
+            else
+            {
+                _intervalTimer.Stop();
+            }
+
             _roundTimer.Stop();
+            if (_settings.Automated)
+            {
+                _dueTimeRoundOver = DateTime.Now.AddSeconds(_settings.SecondsBetweenRounds);
+                _roundOverTimer.Start();
+                _netManager.BroadcastPacket(FromServerToClientPackets.UpdateRoundOverTimer, new UpdateRoundOverTimerFromServerToClientData
+                {
+                    TimeRemaining = (ushort)_settings.SecondsBetweenRounds,
+                });
+            }
 
             _netManager.BroadcastPacket(FromServerToClientPackets.EndRound, new EndRoundFromServerToClientData
             {
@@ -411,11 +469,61 @@ namespace PropHunt.Server
         }
 
         /// <summary>
+        /// Toggle in settings whether rounds should be automatically started.
+        /// </summary>
+        /// <param name="graceTime">The duration of the initial grace time in seconds at the start of an automated round.</param>
+        /// <param name="roundTime">The duration of time in an automated round.</param>
+        /// <param name="secondsBetweenRounds">The duration of time between automated rounds.</param>
+        private void ToggleAutomation(byte graceTime, ushort roundTime, ushort secondsBetweenRounds)
+        {
+            _logger.Info("Toggling automated rounds to " + !_settings.Automated);
+
+            _settings.Automated = !_settings.Automated;
+            _settings.GraceTimeSeconds = graceTime;
+            _settings.RoundTimeSeconds = roundTime;
+            _settings.SecondsBetweenRounds = secondsBetweenRounds;
+            if (_settings.Automated && !_roundStarted)
+            {
+                _intervalTimer.Start();
+                _dueTimeRoundOver = DateTime.Now.AddSeconds(_settings.SecondsBetweenRounds);
+                _roundOverTimer.Interval = _settings.SecondsBetweenRounds * 1000;
+                _roundOverTimer.Start();
+            }
+            else
+            {
+                if (!_roundStarted)
+                {
+                    _intervalTimer.Stop();
+                }
+                
+                _dueTimeRoundOver = DateTime.Now;
+                _roundOverTimer.Stop();
+                _netManager.BroadcastPacket(FromServerToClientPackets.UpdateRoundOverTimer,
+                    new UpdateRoundOverTimerFromServerToClientData
+                    {
+                        TimeRemaining = 0,
+                    });
+            }
+
+            _settings.SaveToFile();
+        }
+
+        /// <summary>
         /// Handle when a player connects to the server.
         /// </summary>
         /// <param name="player">The player who connected.</param>
         private void OnPlayerConnect(IServerPlayer player)
         {
+            if (_settings.Automated)
+            {
+                if (!_roundStarted && _serverApi.ServerManager.Players.Count >= MinimumPlayers)
+                {
+                    _dueTimeRoundOver = DateTime.Now.AddSeconds(_settings.SecondsBetweenRounds);
+                    _roundOverTimer.Start();
+                    _intervalTimer.Start();
+                }
+            }
+
             if (!_roundStarted) return;
 
             bool isHunter;
@@ -453,6 +561,15 @@ namespace PropHunt.Server
         /// <param name="player">The player who disconnected.</param>
         private void OnPlayerDisconnect(IServerPlayer player)
         {
+            var numPlayers = _serverApi.ServerManager.Players.Count;
+            if (numPlayers < MinimumPlayers)
+            {
+                _logger.Warn(
+                    $"Not enough players to start a round. {MinimumPlayers} required, {numPlayers} connected. Ending round.");
+                EndRound(PropsAlive <= 0);
+                return;
+            }
+            
             if (!_roundStarted) return;
 
             var disconnectedProp = _livingProps.FirstOrDefault(prop => prop.Id == player.Id);
@@ -485,10 +602,28 @@ namespace PropHunt.Server
         /// </summary>
         private void IntervalTimerElapse(object _, ElapsedEventArgs elapsedEventArgs)
         {
-            _netManager.BroadcastPacket(FromServerToClientPackets.UpdateRoundTimer, new UpdateRoundTimerFromServerToClientData
+            if (_roundStarted)
             {
-                TimeRemaining = (ushort)(_dueTimeRound - DateTime.Now).TotalSeconds,
-            });
+                var roundTimeRemaining = (_dueTimeRound - DateTime.Now).TotalSeconds;
+                if (roundTimeRemaining >= 0)
+                {
+                    _netManager.BroadcastPacket(FromServerToClientPackets.UpdateRoundTimer, new UpdateRoundTimerFromServerToClientData
+                    {
+                        TimeRemaining = (ushort)roundTimeRemaining,
+                    });
+                }
+            }
+            else
+            {
+                var roundOverTimeRemaining = (_dueTimeRoundOver - DateTime.Now).TotalSeconds;
+                if (roundOverTimeRemaining >= 0)
+                {
+                    _netManager.BroadcastPacket(FromServerToClientPackets.UpdateRoundOverTimer, new UpdateRoundOverTimerFromServerToClientData
+                    {
+                        TimeRemaining = (ushort)roundOverTimeRemaining,
+                    });
+                }
+            }
 
             var graceTimeRemaining = (_dueTimeGrace - DateTime.Now).TotalSeconds;
             if (graceTimeRemaining >= 0)
@@ -506,6 +641,14 @@ namespace PropHunt.Server
         private void RoundTimerElapse(object _, ElapsedEventArgs elapsedEventArgs)
         {
             EndRound(PropsAlive <= 0);
+        }
+
+        /// <summary>
+        /// Handle when the round over timer ends.
+        /// </summary>
+        private void RoundOverTimerElapse(object _, ElapsedEventArgs elapsedEventArgs)
+        {
+            StartRound(_settings.GraceTimeSeconds, _settings.RoundTimeSeconds);
         }
     }
 }

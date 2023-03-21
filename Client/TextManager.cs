@@ -71,7 +71,7 @@ namespace PropHunt.Client
         }
 
         /// <summary>
-        /// Set the remaining amount of grace time for Hunters showed in this text.
+        /// Set the remaining amount of grace time for Hunters shown in this text.
         /// </summary>
         /// <param name="seconds">The amount of grace time left in seconds.</param>
         public static void SetRemainingGraceTime(byte seconds)
@@ -96,7 +96,7 @@ namespace PropHunt.Client
         }
 
         /// <summary>
-        /// Set the remaining amount of time in the current round showed in this text.
+        /// Set the remaining amount of time in the current round shown in this text.
         /// </summary>
         /// <param name="seconds">The amount of time left in the round in seconds.</param>
         public static void SetRemainingRoundTime(ushort seconds)
@@ -109,6 +109,23 @@ namespace PropHunt.Client
 
             var timeSpan = TimeSpan.FromSeconds(seconds);
             string timeText = $"Round time: {timeSpan.Minutes:D1}:{timeSpan.Seconds:D2}";
+            _roundTextMesh.text = timeText;
+        }
+
+        /// <summary>
+        /// Set the remaining amount of time before a new rounds begins shown in this text.
+        /// </summary>
+        /// <param name="seconds">The amount of time left in the round in seconds.</param>
+        public static void SetRemainingRoundOverTime(ushort seconds)
+        {
+            if (seconds <= 0)
+            {
+                _roundTextMesh.text = "";
+                return;
+            }
+
+            var timeSpan = TimeSpan.FromSeconds(seconds);
+            string timeText = $"Time before next round: {timeSpan.Minutes:D1}:{timeSpan.Seconds:D2}";
             _roundTextMesh.text = timeText;
         }
 

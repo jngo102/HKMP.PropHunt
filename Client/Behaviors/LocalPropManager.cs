@@ -66,26 +66,6 @@ namespace PropHunt.Client.Behaviors
         private const float MAX_SCALE = 2f;
 
         /// <summary>
-        /// The minimum amount of health that a prop may have.
-        /// </summary>
-        private const int PROP_HEALTH_MIN = 2;
-
-        /// <summary>
-        /// The maximum amount of health that a prop may have.
-        /// </summary>
-        private const int PROP_HEALTH_MAX = 11;
-
-        /// <summary>
-        /// The largest area that a sprite may occupy.
-        /// </summary>
-        private const float LARGEST_SPRITE_AREA = 25f;
-
-        /// <summary>
-        /// The smallest area that a sprite may occupy.
-        /// </summary>
-        private const float SMALLEST_SPRITE_AREA = 0f;
-
-        /// <summary>
         /// The original size of the player's collider.
         /// </summary>
         private Vector2 _origColSize;
@@ -348,16 +328,6 @@ namespace PropHunt.Client.Behaviors
                 transform.position += moveUp;
                     
                 _col.size = breakCol.size;
-
-                Vector2 breakSize = breakSprite.bounds.size;
-                var area = breakSize.x * breakSize.y;
-                float maxHealth = MathUtil.Map(
-                    area,
-                    SMALLEST_SPRITE_AREA,
-                    LARGEST_SPRITE_AREA,
-                    PROP_HEALTH_MIN,
-                    PROP_HEALTH_MAX);
-                LoadoutManager.SetHealth((int)maxHealth, false);
 
                 _propSprite.transform.localPosition = Vector3.zero;
                 _propSprite.transform.rotation = Quaternion.identity;

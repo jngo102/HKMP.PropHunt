@@ -72,6 +72,11 @@ namespace PropHunt.Client
         public event Action<UpdateRoundTimerFromServerToClientData> UpdateRoundTimerEvent;
 
         /// <summary>
+        /// Event that is invoked when the round over timer is updated.
+        /// </summary>
+        public event Action<UpdateRoundOverTimerFromServerToClientData> UpdateRoundOverTimerEvent;
+
+        /// <summary>
         /// Network sender of packets from the local client to the server.
         /// </summary>
         private static IClientAddonNetworkSender<FromClientToServerPackets> _sender;
@@ -134,6 +139,10 @@ namespace PropHunt.Client
             receiver.RegisterPacketHandler<UpdateRoundTimerFromServerToClientData>(
                 FromServerToClientPackets.UpdateRoundTimer,
                 packetData => UpdateRoundTimerEvent?.Invoke(packetData));
+
+            receiver.RegisterPacketHandler<UpdateRoundOverTimerFromServerToClientData>(
+                FromServerToClientPackets.UpdateRoundOverTimer,
+                packetData => UpdateRoundOverTimerEvent?.Invoke(packetData));
         }
 
         /// <summary>
@@ -179,6 +188,8 @@ namespace PropHunt.Client
                     return new UpdateGraceTimerFromServerToClientData();
                 case FromServerToClientPackets.UpdateRoundTimer:
                     return new UpdateRoundTimerFromServerToClientData();
+                case FromServerToClientPackets.UpdateRoundOverTimer:
+                    return new UpdateRoundOverTimerFromServerToClientData();
             }
 
             return null;

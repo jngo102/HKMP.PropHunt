@@ -305,6 +305,49 @@ namespace PropHunt.HKMP
             packet.Write(RoundTime);
         }
     }
+
+    /// <summary>
+    /// Sent from a client to the server to toggle automated rounds.
+    /// </summary>
+    internal class ToggleAutomationFromClientToServerData : IPacketData
+    {
+        /// <summary>
+        /// The amount of grace time in seconds to automatically start a new round with.
+        /// </summary>
+        public byte GraceTime;
+
+        /// <summary>
+        /// The amount of round time in seconds to automatically start a new round with.
+        /// </summary>
+        public ushort RoundTime;
+
+        /// <summary>
+        /// The amount of time in seconds to wait between automatically starting new rounds.
+        /// </summary>
+        public ushort SecondsBetweenRounds;
+
+        /// <inheritdoc />
+        public bool DropReliableDataIfNewerExists => true;
+
+        /// <inheritdoc />
+        public bool IsReliable => true;
+
+        /// <inheritdoc />
+        public void ReadData(IPacket packet)
+        {
+            GraceTime = packet.ReadByte();
+            RoundTime = packet.ReadUShort();
+            SecondsBetweenRounds = packet.ReadUShort();
+        }
+
+        /// <inheritdoc />
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(GraceTime);
+            packet.Write(RoundTime);
+            packet.Write(SecondsBetweenRounds);
+        }
+    }
     #endregion
 
     #region Server to Client
@@ -783,6 +826,35 @@ namespace PropHunt.HKMP
     {
         /// <summary>
         /// The amount of time remaining in the round in seconds.
+        /// </summary>
+        public ushort TimeRemaining;
+
+        /// <inheritdoc />
+        public bool DropReliableDataIfNewerExists => false;
+
+        /// <inheritdoc />
+        public bool IsReliable => false;
+
+        /// <inheritdoc />
+        public void ReadData(IPacket packet)
+        {
+            TimeRemaining = packet.ReadUShort();
+        }
+
+        /// <inheritdoc />
+        public void WriteData(IPacket packet)
+        {
+            packet.Write(TimeRemaining);
+        }
+    }
+
+    /// <summary>
+    /// Sent by the server to a client to update the amount of time remaining between rounds.
+    /// </summary>
+    internal class UpdateRoundOverTimerFromServerToClientData : IPacketData
+    {
+        /// <summary>
+        /// The amount of time remaining in seconds before a new round starts.
         /// </summary>
         public ushort TimeRemaining;
 

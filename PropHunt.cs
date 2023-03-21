@@ -55,7 +55,7 @@ namespace PropHunt
                     Settings.Bindings.TranslateXyButton
                 ),
                 Blueprints.KeyAndButtonBind(
-                    "Move Prop In/Out",
+                    "Change Prop Depth",
                     Settings.Bindings.TranslateZKey,
                     Settings.Bindings.TranslateZButton
                 ),

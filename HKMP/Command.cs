@@ -23,18 +23,21 @@ namespace PropHunt.HKMP
         /// <summary>
         /// Command parameters that signal a request to start a new round.
         /// </summary>
-        private string[] _activateCommands = { "on", "true", "yes", "activate", "enable", "start", "begin", "restart" };
+        private readonly string[] _activateCommands = { "on", "true", "yes", "activate", "enable", "start", "begin", "restart" };
 
         /// <summary>
         /// Command parameters that signal a request to stop the current round.
         /// </summary>
-        private string[] _deactivateCommands = { "off", "false", "no", "deactivate", "disable", "stop", "end" };
+        private readonly string[] _deactivateCommands = { "off", "false", "no", "deactivate", "disable", "stop", "end" };
+
+        private readonly string[] _automateCommands = { "auto", "automate" };
 
         /// <inheritdoc />
         public void Execute(string[] arguments)
         {
             byte graceTime= 15;
             ushort roundTime = 120;
+            ushort secondsBetweenRounds = 60;
             if (arguments.Length > 3)
             {
                 roundTime = ushort.Parse(arguments[3]);
@@ -46,11 +49,20 @@ namespace PropHunt.HKMP
 
             if (_activateCommands.Contains(arguments[1].ToLower()))
             {
-                RoundManager.StartRound(graceTime, roundTime);
+                ClientGameManager.StartRound(graceTime, roundTime);
             }
             else if (_deactivateCommands.Contains(arguments[1].ToLower()))
             {
-                RoundManager.EndRound();
+                ClientGameManager.EndRound();
+            }
+            else if (_automateCommands.Contains(arguments[1].ToLower()))
+            {
+                if (arguments.Length > 4)
+                {
+                    secondsBetweenRounds = ushort.Parse(arguments[4]);
+                }
+
+                ClientGameManager.ToggleAutomation(graceTime, roundTime, secondsBetweenRounds);
             }
         }
     }
