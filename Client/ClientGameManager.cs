@@ -28,7 +28,12 @@ namespace PropHunt.Client
         /// <summary>
         /// A logger for the client game manager.
         /// </summary>
-        private ILogger _logger;
+        private readonly ILogger _logger;
+
+        /// <summary>
+        /// An instance of the save manager.
+        /// </summary>
+        private SaveManager _saveManager;
 
         /// <summary>
         /// Constructor for the client game manager.
@@ -40,6 +45,7 @@ namespace PropHunt.Client
             _logger = addon.Logger;
             _clientApi = clientApi;
             _netManager = new ClientNetManager(addon, clientApi.NetClient);
+            _saveManager = new SaveManager(_logger);
         }
 
         /// <summary>
@@ -50,6 +56,11 @@ namespace PropHunt.Client
             ComponentManager.Initialize(_clientApi);
             IconManager.Initialize();
             TextManager.Initialize();
+
+            _clientApi.UiManager.DisableSkinSelection();
+            _clientApi.UiManager.DisableTeamSelection();
+
+            _saveManager.Initialize();
 
             _netManager.AssignTeamEvent += packetData => ComponentManager.AssignTeam(packetData.IsHunter, packetData.InGrace);
             _netManager.EndRoundEvent += packetData => ComponentManager.EndRound(packetData.HuntersWin);
@@ -89,9 +100,9 @@ namespace PropHunt.Client
         public static void StartRound(byte graceTime, ushort roundTime)
         {
             var numPlayers = _clientApi.ClientManager.Players.Count;
-            if (numPlayers < MinimumPlayers)
+            if (numPlayers < MinimumPlayers - 1)
             {
-                TextManager.DisplayDreamMessage($"Not enough players to start a round! {MinimumPlayers} required, {numPlayers} connected.");
+                TextManager.DisplayDreamMessage($"Not enough players to start a round! {MinimumPlayers} required, {numPlayers + 1} connected.");
                 return;
             }
 

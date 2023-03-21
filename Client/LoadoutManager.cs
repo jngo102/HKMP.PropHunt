@@ -4,7 +4,7 @@ namespace PropHunt.Client
 {
     /// <summary>
     /// Handles assigning and removing loadouts for players during a round of prop hunt.
-    /// Portions taken from https://github.com/Extremelyd1/HKMP-Tag/blob/master/Client/LoadoutUtil.cs
+    /// Portions taken from https://github.com/Extremelyd1/HKMP-Tag/blob/master/Client/LoadoutUtil.cs.
     /// </summary>
     internal static class LoadoutManager
     {
@@ -23,7 +23,7 @@ namespace PropHunt.Client
             SetHealth(10, true);
             RemoveSoul();
             SetKingSoul();
-            EquipCharms(26, 31, 36, 37);
+            EquipCharms(2, 26, 31, 36, 37);
             var animCtrl = HeroController.instance.GetComponent<HeroAnimationController>();
             animCtrl.enabled = true;
             On.HeroController.CanFocus += RemoveFocus;

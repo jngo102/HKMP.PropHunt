@@ -10,6 +10,27 @@ using System.Timers;
 namespace PropHunt.Server
 {
     /// <summary>
+    /// Enumeration for the states that a round can be in.
+    /// </summary>
+    internal enum GameState
+    {
+        /// <summary>
+        /// Wait time while there are not enough players to start a round.
+        /// </summary>
+        WaitingForPlayers,
+        
+        /// <summary>
+        /// Wait time before a new round begins.
+        /// </summary>
+        WaitingForRoundStart,
+
+        /// <summary>
+        /// While a round is in progress.
+        /// </summary>
+        InRound,
+    }
+
+    /// <summary>
     /// Manages the server side game state.
     /// </summary>
     internal class ServerGameManager
@@ -60,11 +81,6 @@ namespace PropHunt.Server
         private ushort PropsAlive => (ushort)_livingProps.Count;
 
         /// <summary>
-        /// Whether a round has started.
-        /// </summary>
-        private bool _roundStarted;
-
-        /// <summary>
         /// Timer that handles the length of time that a round goes for.
         /// </summary>
         private Timer _roundTimer;
@@ -102,12 +118,22 @@ namespace PropHunt.Server
         /// <summary>
         /// An instance of the server network manager.
         /// </summary>
-        private ServerNetManager _netManager;
+        private readonly ServerNetManager _netManager;
+
+        /// <summary>
+        /// The current game state.
+        /// </summary>
+        private GameState _gameState;
 
         /// <summary>
         /// A logger for the server game manager.
         /// </summary>
         private readonly ILogger _logger;
+
+        /// <summary>
+        /// The instance of random used to identify props and hunters.
+        /// </summary>
+        private Random _random;
 
         /// <summary>
         /// An instance of server settings.
@@ -126,6 +152,8 @@ namespace PropHunt.Server
 
             _settings = ServerSettings.LoadFromFile();
 
+            _random = new Random();
+
             _netManager = new ServerNetManager(addon, serverApi.NetServer);
         }
 
@@ -134,6 +162,8 @@ namespace PropHunt.Server
         /// </summary>
         public void Initialize()
         {
+            _gameState = GameState.WaitingForPlayers;
+
             _netManager.HunterDeathEvent += OnHunterDeath;
             _netManager.PropDeathEvent += OnPropDeath;
             _netManager.UpdatePropPositionXyEvent += (playerId, packetData) => OnUpdatePropPositionXy(playerId, packetData.X, packetData.Y);
@@ -143,7 +173,9 @@ namespace PropHunt.Server
             _netManager.UpdatePropSpriteEvent += (playerId, packetData) => OnUpdatePropSprite(playerId,
                 packetData.SpriteName, packetData.NumBytes, packetData.SpriteBytes, packetData.PositionX,
                 packetData.PositionY, packetData.PositionZ, packetData.RotationZ, packetData.Scale);
-            _netManager.StartRoundEvent += packetData => StartRound(packetData.GraceTime, packetData.RoundTime);
+            _netManager.StartRoundEvent += packetData =>
+                StartRound((ushort)(_serverApi.ServerManager.Players.Count / 2), packetData.GraceTime,
+                    packetData.RoundTime);
             _netManager.EndRoundEvent += _ => OnEndRound();
             _netManager.ToggleAutomationEvent += packetData =>
                 ToggleAutomation(packetData.GraceTime, packetData.RoundTime, packetData.SecondsBetweenRounds);
@@ -166,12 +198,11 @@ namespace PropHunt.Server
         /// <param name="playerId">The name of the player who died.</param>
         private void OnHunterDeath(ushort playerId)
         {
-            if (!_roundStarted) return;
+            if (_gameState != GameState.InRound) return;
 
             if (_serverApi.ServerManager.TryGetPlayer(playerId, out var player))
             {
-                var random = new Random();
-                int convoNum = random.Next(0, 6);
+                int convoNum = _random.Next(0, 6);
                 _netManager.BroadcastPacket(FromServerToClientPackets.HunterDeath,
                     new HunterDeathFromServerToClientData
                     {
@@ -187,7 +218,7 @@ namespace PropHunt.Server
         /// <param name="playerId">The name of the player who died.</param>
         private void OnPropDeath(ushort playerId)
         {
-            if (!_roundStarted) return;
+            if (_gameState != GameState.InRound) return;
 
             if (_serverApi.ServerManager.TryGetPlayer(playerId, out var player))
             {
@@ -352,9 +383,10 @@ namespace PropHunt.Server
         /// <summary>
         /// Start a new round.
         /// </summary>
+        /// <param name="numHunters">The number of initial hunters at the start of the round.</param>
         /// <param name="graceTime">The amount of initial grace time in seconds.</param>
         /// <param name="roundTime">The amount of time in the round in seconds.</param>
-        private void StartRound(byte graceTime, ushort roundTime)
+        private void StartRound(ushort numHunters, byte graceTime, ushort roundTime)
         {
             var numPlayers = _serverApi.ServerManager.Players.Count;
             if (numPlayers < MinimumPlayers)
@@ -364,9 +396,9 @@ namespace PropHunt.Server
             }
 
             _logger.Info($"Round started; Grace Time: {graceTime}, Round Time: {roundTime}");
-            
-            _roundStarted = true;
-            
+
+            _gameState = GameState.InRound;
+
             if (_settings.Automated)
             {
                 _roundOverTimer.Stop();
@@ -374,15 +406,18 @@ namespace PropHunt.Server
 
             var players = _serverApi.ServerManager.Players.ToList();
             players.Shuffle();
-            int halfCount = players.Count / 2;
+
+            List<IServerPlayer> huntersLastRound = new(_allHunters);
 
             _allHunters.Clear();
             _allProps.Clear();
             _livingHunters.Clear();
             _livingProps.Clear();
 
-            _allHunters.AddRange(players.GetRange(0, halfCount));
-            _allProps.AddRange(players.GetRange(halfCount, players.Count - halfCount));
+            var possibleHunters = players.Where(player => !huntersLastRound.Contains(player)).ToList();
+
+            _allHunters.AddRange(possibleHunters.GetRange(0, numHunters));
+            _allProps.AddRange(players.Where(player => !_allHunters.Contains(player)));
 
             _livingHunters.AddRange(_allHunters);
             _livingProps.AddRange(_allProps);
@@ -439,9 +474,6 @@ namespace PropHunt.Server
         /// <param name="huntersWin"></param>
         private void EndRound(bool huntersWin)
         {
-            _logger.Info("Rounded ended; hunters won: " + huntersWin);
-
-            _roundStarted = false;
             if (_settings.Automated)
             {
                 _intervalTimer.Start();
@@ -452,6 +484,11 @@ namespace PropHunt.Server
             }
 
             _roundTimer.Stop();
+
+            if (_gameState != GameState.InRound) return;
+
+            _logger.Info("Rounded ended; hunters won: " + huntersWin);
+
             if (_settings.Automated)
             {
                 _dueTimeRoundOver = DateTime.Now.AddSeconds(_settings.SecondsBetweenRounds);
@@ -462,6 +499,7 @@ namespace PropHunt.Server
                 });
             }
 
+            _gameState = GameState.WaitingForRoundStart;
             _netManager.BroadcastPacket(FromServerToClientPackets.EndRound, new EndRoundFromServerToClientData
             {
                 HuntersWin = huntersWin,
@@ -482,7 +520,7 @@ namespace PropHunt.Server
             _settings.GraceTimeSeconds = graceTime;
             _settings.RoundTimeSeconds = roundTime;
             _settings.SecondsBetweenRounds = secondsBetweenRounds;
-            if (_settings.Automated && !_roundStarted)
+            if (_settings.Automated && _gameState != GameState.InRound)
             {
                 _intervalTimer.Start();
                 _dueTimeRoundOver = DateTime.Now.AddSeconds(_settings.SecondsBetweenRounds);
@@ -491,11 +529,11 @@ namespace PropHunt.Server
             }
             else
             {
-                if (!_roundStarted)
+                if (_gameState != GameState.InRound)
                 {
                     _intervalTimer.Stop();
                 }
-                
+
                 _dueTimeRoundOver = DateTime.Now;
                 _roundOverTimer.Stop();
                 _netManager.BroadcastPacket(FromServerToClientPackets.UpdateRoundOverTimer,
@@ -514,9 +552,10 @@ namespace PropHunt.Server
         /// <param name="player">The player who connected.</param>
         private void OnPlayerConnect(IServerPlayer player)
         {
-            if (_settings.Automated)
+            if (_settings.Automated && _gameState == GameState.WaitingForPlayers)
             {
-                if (!_roundStarted && _serverApi.ServerManager.Players.Count >= MinimumPlayers)
+                // Start the countdown timer if enough players have connected.
+                if (_gameState != GameState.InRound && _serverApi.ServerManager.Players.Count >= MinimumPlayers)
                 {
                     _dueTimeRoundOver = DateTime.Now.AddSeconds(_settings.SecondsBetweenRounds);
                     _roundOverTimer.Start();
@@ -524,35 +563,36 @@ namespace PropHunt.Server
                 }
             }
 
-            if (!_roundStarted) return;
+            // Assign the new player a team if a round is in progress.
+            if (_gameState == GameState.InRound)
+            {
+                bool isHunter;
+                if (HuntersAlive > PropsAlive)
+                {
+                    isHunter = false;
+                    _allHunters.Add(player);
+                    _livingProps.Add(player);
+                }
+                else if (PropsAlive > HuntersAlive)
+                {
+                    isHunter = true;
+                    _allProps.Add(player);
+                    _livingHunters.Add(player);
+                }
+                else
+                {
+                    var teamChoices = new[] { false, true };
+                    isHunter = teamChoices[_random.Next(0, 2)];
+                }
 
-            bool isHunter;
-            if (HuntersAlive > PropsAlive)
-            {
-                isHunter = false;
-                _allHunters.Add(player);
-                _livingProps.Add(player);
-            }
-            else if (PropsAlive > HuntersAlive)
-            {
-                isHunter = true;
-                _allProps.Add(player);
-                _livingHunters.Add(player);
-            }
-            else
-            {
-                var teamChoices = new[] { false, true };
-                var rand = new Random();
-                isHunter = teamChoices[rand.Next(0, 2)];
-            }
+                _logger.Info("New player assigned to Hunters team: " + isHunter);
 
-            _logger.Info("New player assigned to Hunters team: " + isHunter);
-
-            _netManager.SendPacket(FromServerToClientPackets.AssignTeam, new AssignTeamFromServerToClientData
-            {
-                IsHunter = isHunter,
-                InGrace = (_dueTimeGrace - DateTime.Now).TotalSeconds > 0,
-            });
+                _netManager.SendPacket(FromServerToClientPackets.AssignTeam, new AssignTeamFromServerToClientData
+                {
+                    IsHunter = isHunter,
+                    InGrace = (_dueTimeGrace - DateTime.Now).TotalSeconds > 0,
+                });
+            }
         }
 
         /// <summary>
@@ -569,8 +609,8 @@ namespace PropHunt.Server
                 EndRound(PropsAlive <= 0);
                 return;
             }
-            
-            if (!_roundStarted) return;
+
+            if (_gameState != GameState.InRound) return;
 
             var disconnectedProp = _livingProps.FirstOrDefault(prop => prop.Id == player.Id);
             var disconnectedHunter = _livingHunters.FirstOrDefault(hunter => hunter.Id == player.Id);
@@ -602,7 +642,7 @@ namespace PropHunt.Server
         /// </summary>
         private void IntervalTimerElapse(object _, ElapsedEventArgs elapsedEventArgs)
         {
-            if (_roundStarted)
+            if (_gameState == GameState.InRound)
             {
                 var roundTimeRemaining = (_dueTimeRound - DateTime.Now).TotalSeconds;
                 if (roundTimeRemaining >= 0)
@@ -648,7 +688,8 @@ namespace PropHunt.Server
         /// </summary>
         private void RoundOverTimerElapse(object _, ElapsedEventArgs elapsedEventArgs)
         {
-            StartRound(_settings.GraceTimeSeconds, _settings.RoundTimeSeconds);
+            var numPlayers = _serverApi.ServerManager.Players.Count;
+            StartRound((ushort)Math.Min(ushort.MaxValue, Math.Max(1, numPlayers / 10)), _settings.GraceTimeSeconds, _settings.RoundTimeSeconds);
         }
     }
 }

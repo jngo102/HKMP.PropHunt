@@ -246,7 +246,7 @@ namespace PropHunt.Client
                     {
                         hunter.BeginGracePeriod();
                     }
-                    
+
                     TextManager.DisplayDreamMessage("You are a hunter!");
 
                     HeroController.instance.SetMPCharge(198);
@@ -262,7 +262,7 @@ namespace PropHunt.Client
                     propManager.enabled = true;
 
                     propManager.ClearProp();
-                    
+
                     TextManager.DisplayDreamMessage("You are a prop!");
                 }
             }

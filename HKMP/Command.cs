@@ -40,11 +40,19 @@ namespace PropHunt.HKMP
             ushort secondsBetweenRounds = 60;
             if (arguments.Length > 3)
             {
-                roundTime = ushort.Parse(arguments[3]);
+                if (!ushort.TryParse(arguments[3], out roundTime))
+                {
+                    TextManager.DisplayDreamMessage("Please provide a number of seconds for the round time.");
+                    return;
+                }
             }
             if (arguments.Length > 2)
             {
-                graceTime = byte.Parse(arguments[2]);
+                if (!byte.TryParse(arguments[2], out graceTime))
+                {
+                    TextManager.DisplayDreamMessage("Please provide a number of seconds for the grace time.");
+                    return;
+                }
             }
 
             if (_activateCommands.Contains(arguments[1].ToLower()))
@@ -59,7 +67,11 @@ namespace PropHunt.HKMP
             {
                 if (arguments.Length > 4)
                 {
-                    secondsBetweenRounds = ushort.Parse(arguments[4]);
+                    if (!ushort.TryParse(arguments[4], out secondsBetweenRounds))
+                    {
+                        TextManager.DisplayDreamMessage("Please provide a number of seconds for the time between rounds.");
+                        return;
+                    }
                 }
 
                 ClientGameManager.ToggleAutomation(graceTime, roundTime, secondsBetweenRounds);

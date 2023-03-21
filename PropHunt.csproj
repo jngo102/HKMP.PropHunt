@@ -8,7 +8,7 @@
 		<Product>PropHunt</Product>
 		<Description>HKMP Prop Hunt add-on.</Description>
 		<Copyright>Copyright © jngo102 2023</Copyright>
-		<AssemblyVersion>0.0.2.3</AssemblyVersion>
+		<AssemblyVersion>0.0.2.4</AssemblyVersion>
 		<OutputPath>bin\$(Configuration)\</OutputPath>
 		<LangVersion>latest</LangVersion>
 		<!-- Path to DLL references required to build mod -->
@@ -112,6 +112,12 @@
 			</HintPath>
 			<Private>False</Private>
 		</Reference>
+		<Reference Include="UnityEngine.AudioModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+			<HintPath>
+				$(LocalRefs)/UnityEngine.AudioModule.dll
+			</HintPath>
+			<Private>False</Private>
+		</Reference>
 		<Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
 			<HintPath>
 				$(LocalRefs)/UnityEngine.CoreModule.dll
@@ -164,10 +170,11 @@
 	<ItemGroup>
 		<None Include=".gitignore" />
 		<None Include="ReadMe.md" />
-		<EmbeddedResource Include="Images/TranslateXy.png" />
-		<EmbeddedResource Include="Images/TranslateZ.png" />
-		<EmbeddedResource Include="Images/Rotate.png" />
-		<EmbeddedResource Include="Images/ScaleUp.png" />
-		<EmbeddedResource Include="Images/ScaleDown.png" />
+		<EmbeddedResource Include="Client\Resources\TranslateXy.png" />
+		<EmbeddedResource Include="Client\Resources\TranslateZ.png" />
+		<EmbeddedResource Include="Client\Resources\Rotate.png" />
+		<EmbeddedResource Include="Client\Resources\ScaleUp.png" />
+		<EmbeddedResource Include="Client\Resources\ScaleDown.png" />
+		<EmbeddedResource Include="Client\Resources\Save.json" />
 	</ItemGroup>
 </Project>
