@@ -86,7 +86,7 @@ namespace PropHunt.Server
                 var settings = JsonConvert.DeserializeObject<ServerSettings>(fileContents);
                 return settings ?? new ServerSettings();
             }
-            catch (Exception e)
+            catch
             {
                 return new ServerSettings();
             }
