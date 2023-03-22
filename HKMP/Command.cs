@@ -35,9 +35,9 @@ namespace PropHunt.HKMP
         /// <inheritdoc />
         public void Execute(string[] arguments)
         {
-            byte graceTime= 15;
-            ushort roundTime = 120;
-            ushort secondsBetweenRounds = 60;
+            byte graceTime= 30;
+            ushort roundTime = 390;
+            ushort secondsBetweenRounds = 90;
             if (arguments.Length > 3)
             {
                 if (!ushort.TryParse(arguments[3], out roundTime))

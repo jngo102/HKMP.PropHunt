@@ -30,6 +30,9 @@ namespace PropHunt.Client
             _clientApi = clientApi;
 
             AddRemotePropManagerComponentsToPlayerPrefabs();
+
+            // Automatically recover your shade upon death.
+            ModHooks.AfterPlayerDeadHook += RecoverShade;
         }
 
         /// <summary>
@@ -221,7 +224,7 @@ namespace PropHunt.Client
         /// <param name="inGrace">Whether the round is still in its grace period.</param>
         public static void AssignTeam(bool isHunter, bool inGrace)
         {
-            IEnumerator HazardRespawnThenAssignTeam()
+            IEnumerator ReloadSceneThenAssignTeam()
             {
                 ModHooks.BeforePlayerDeadHook += BroadcastPlayerDeath;
                 USceneManager.activeSceneChanged -= PatchManager.OnSceneChange;
@@ -231,9 +234,14 @@ namespace PropHunt.Client
                 var hunter = HeroController.instance.GetComponent<Hunter>();
                 PlayerData.instance.isInvincible = false;
 
-                GameManager.instance.LoadScene(USceneManager.GetActiveScene().name);
-                PlayerData.instance.SetHazardRespawn(Object.FindObjectOfType<HazardRespawnMarker>());
-                yield return HeroController.instance.HazardRespawn();
+                yield return ResetScene();
+
+                var respawnMarker = Object.FindObjectsOfType<HazardRespawnMarker>().FirstOrDefault();
+                if (respawnMarker != null)
+                {
+                    PlayerData.instance.SetHazardRespawn(respawnMarker.transform.position, true);
+                    yield return HeroController.instance.HazardRespawn();
+                }
 
                 if (isHunter)
                 {
@@ -260,6 +268,8 @@ namespace PropHunt.Client
 
                     hunter.enabled = false;
                     propManager.enabled = true;
+                    
+                    TextManager.ShowBlanker(false);
 
                     propManager.ClearProp();
 
@@ -267,7 +277,7 @@ namespace PropHunt.Client
                 }
             }
 
-            GameManager.instance.StartCoroutine(HazardRespawnThenAssignTeam());
+            GameManager.instance.StartCoroutine(ReloadSceneThenAssignTeam());
         }
 
         /// <summary>
@@ -291,9 +301,7 @@ namespace PropHunt.Client
             On.Breakable.Break -= OnBreakableBreak;
             USceneManager.activeSceneChanged -= PatchManager.OnSceneChange;
 
-            var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
-            var blankerCtrl = blanker.LocateMyFSM("Blanker Control");
-            blankerCtrl.SendEvent("FADE OUT INSTANT");
+            TextManager.ShowBlanker(false);
 
             PlayerData.instance.isInvincible = true;
 
@@ -408,6 +416,102 @@ namespace PropHunt.Client
             HeroController.instance.TakeDamage(null, CollisionSide.top, 1, (int)HazardType.PIT);
 
             orig(self, flingAngleMin, flingAngleMax, impactMultiplier);
+        }
+
+        /// <summary>
+        /// Reset the scene so that all background objects are regenerated.
+        /// </summary>
+        public static IEnumerator ResetScene()
+        {
+            // Wait for hazard respawn to finish
+            yield return new WaitWhile(() => HeroController.instance.cState.hazardRespawning);
+
+            // Cancel any NPC conversation that was happening before warping
+            PlayMakerFSM.BroadcastEvent("CONVO CANCEL");
+
+            var heroController = HeroController.instance;
+
+            // Unpause the game if it was paused
+            var uiManager = UIManager.instance;
+            if (uiManager != null)
+            {
+                if (uiManager.uiState.Equals(UIState.PAUSED))
+                {
+                    var gm = GameManager.instance;
+
+                    GameCameras.instance.ResumeCameraShake();
+                    gm.inputHandler.PreventPause();
+                    gm.isPaused = false;
+                    gm.ui.AudioGoToGameplay(0.2f);
+                    gm.ui.SetState(UIState.PLAYING);
+                    gm.SetState(GameState.PLAYING);
+                    heroController?.UnPause();
+
+                    MenuButtonList.ClearAllLastSelected();
+                    gm.inputHandler.AllowPause();
+                }
+            }
+
+            // First kill conveyor movement since otherwise the game will think we are still on a conveyor
+            // after we reload the scene
+            if (heroController != null)
+            {
+                heroController.cState.inConveyorZone = false;
+                heroController.cState.onConveyor = false;
+                heroController.cState.onConveyorV = false;
+            }
+
+            var gameManager = GameManager.instance;
+
+            // Method do execute the scene transition with the given values
+            IEnumerator DoSceneTransition()
+            {
+                var sceneName = USceneManager.GetActiveScene().name;
+                var entryPoint = Object.FindObjectsOfType<TransitionPoint>().FirstOrDefault()?.entryPoint;
+                gameManager.BeginSceneTransition(new GameManager.SceneLoadInfo
+                {
+                    SceneName = sceneName,
+                    EntryGateName = entryPoint,
+                    HeroLeaveDirection = GatePosition.door,
+                    EntryDelay = 0,
+                    WaitForSceneTransitionCameraFade = true,
+                    Visualization = GameManager.SceneLoadVisualizations.Default,
+                });
+
+                yield return new WaitWhile(() => gameManager.IsInSceneTransition);
+            }
+
+            // Check if another scene is already loading, and if so wait for it to finish
+            if (gameManager.IsLoadingSceneTransition)
+            {
+                yield return new WaitWhile(() => gameManager.IsLoadingSceneTransition);
+            }
+            else
+            {
+                yield return DoSceneTransition();
+            }
+        }
+
+        /// <summary>
+        /// Recover your shade and geo.
+        /// </summary>
+        private static void RecoverShade()
+        {
+            PlayerData.instance.EndSoulLimiter();
+            if (PlayerData.instance.geoPool > 0)
+            {
+                HeroController.instance.AddGeo(PlayerData.instance.geoPool);
+                PlayerData.instance.geoPool = 0;
+            }
+
+            PlayerData.instance.shadeScene = "None";
+            foreach (var fsm in GameCameras.instance.hudCanvas.transform.Find("Soul Orb")
+                         .GetComponentsInChildren<PlayMakerFSM>())
+            {
+                fsm.SendEvent("SOUL LIMITER DOWN");
+            }
+
+            PlayMakerFSM.BroadcastEvent("HOLLOW SHADE KILLED");
         }
     }
 }

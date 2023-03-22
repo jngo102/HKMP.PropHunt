@@ -1,7 +1,13 @@
-﻿using Hkmp.Api.Client;
+﻿using GlobalEnums;
+using Hkmp.Api.Client;
 using PropHunt.HKMP;
 using System;
+using System.Collections;
+using System.Linq;
+using UnityEngine;
 using ILogger = Hkmp.Logging.ILogger;
+using UObject = UnityEngine.Object;
+using USceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace PropHunt.Client
 {
@@ -79,14 +85,19 @@ namespace PropHunt.Client
             _netManager.UpdatePropSpriteEvent += packetData => ComponentManager.UpdateRemotePropSprite(packetData.PlayerId,
                 packetData.SpriteName, packetData.SpriteBytes, packetData.PositionX, packetData.PositionY,
                 packetData.PositionZ, packetData.RotationZ, packetData.Scale);
-            
-            _clientApi.CommandManager.RegisterCommand(new PropHuntCommand());
 
             _clientApi.ClientManager.ConnectEvent += ComponentManager.OnLocalPlayerConnect;
             _clientApi.ClientManager.DisconnectEvent += ComponentManager.OnLocalPlayerDisconnect;
             _clientApi.ClientManager.PlayerEnterSceneEvent += ComponentManager.OnRemotePlayerEnterScene;
+
+            _clientApi.CommandManager.RegisterCommand(new PropHuntCommand());
         }
 
+        /// <summary>
+        /// Change the HKMP chat box's type.
+        /// </summary>
+        /// <param name="type">The type to change the HKMP chat box to.</param>
+        /// <returns>The changed HKMP chat box.</returns>
         public static object ChangeHkmpChatBoxType(Type type)
         {
             return Convert.ChangeType(_clientApi.UiManager.ChatBox, type);

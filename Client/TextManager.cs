@@ -78,8 +78,7 @@ namespace PropHunt.Client
         {
             if (seconds <= 0)
             {
-                var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
-                blanker.LocateMyFSM("Blanker Control").SendEvent("FADE OUT INSTANT");
+                ShowBlanker(false);
 
                 var hc = HeroController.instance;
                 hc.AcceptInput();
@@ -213,6 +212,16 @@ namespace PropHunt.Client
             var renderer = _roundTextMesh.renderer;
             renderer.sortingLayerName = "HUD";
             renderer.sortingOrder = 11;
+        }
+
+        /// <summary>
+        /// Show or hide the blanker.
+        /// </summary>
+        /// <param name="show">Whether to make the blanker visible.</param>
+        public static void ShowBlanker(bool show = true)
+        {
+            var blanker = GameCameras.instance.hudCamera.transform.Find("2dtk Blanker").gameObject;
+            blanker.LocateMyFSM("Blanker Control").SendEvent("FADE " + (show ? "IN" : "OUT") + " INSTANT");
         }
     }
 }

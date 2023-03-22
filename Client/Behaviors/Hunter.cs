@@ -17,9 +17,7 @@ namespace PropHunt.Client.Behaviors
         /// </summary>
         public void BeginGracePeriod()
         {
-            var hudCam = GameCameras.instance.hudCamera;
-            var blanker = hudCam.transform.Find("2dtk Blanker").gameObject;
-            blanker.LocateMyFSM("Blanker Control").SendEvent("FADE IN INSTANT");
+            TextManager.ShowBlanker();
             
             var hc = GetComponent<HeroController>();
             hc.IgnoreInput();
